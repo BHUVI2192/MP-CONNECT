@@ -1,0 +1,9 @@
+{
+  "name": "MP Connect",
+  "description": "A sophisticated role-based constituency management system for MPs, PAs, and citizens, featuring real-time analytics, tour management, and complaint tracking.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
