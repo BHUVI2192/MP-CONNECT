@@ -5,22 +5,20 @@ import { Button } from '../../components/UI/Button';
 import { MessageSquare, CheckCircle, Clock, MapPin, Search, ChevronRight, X, Upload, FileText, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { useMockData } from '../../context/MockDataContext';
+
 export const CitizenDashboard: React.FC = () => {
+  const { complaints, addComplaint } = useMockData();
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Trackers State
-  const [trackers, setTrackers] = useState([
-    { id: "CMP-8821", title: "Street Light Outage", area: "West Enclave", status: "Resolved", date: "2 days ago" },
-    { id: "CMP-9122", title: "Water Supply Irregularity", area: "Sector 4", status: "In Progress", date: "4 days ago" },
-  ]);
 
   // Form State
   const [formData, setFormData] = useState({
     category: '',
     location: '',
     headline: '',
-    description: ''
+    description: '',
+    priority: 'Medium' as 'High' | 'Medium' | 'Low'
   });
 
   const handleFakeSubmit = () => {
@@ -29,18 +27,23 @@ export const CitizenDashboard: React.FC = () => {
     // Simulate API call
     setTimeout(() => {
       const newId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newTracker = {
+
+      const newComplaint = {
         id: newId,
-        title: formData.headline || "New Grievance",
-        area: formData.location || "Unknown Area",
-        status: "New",
-        date: "Just now"
+        citizenName: "Current Citizen", // Mock Name
+        category: formData.category || "General",
+        location: formData.location || "Unknown",
+        description: formData.description || formData.headline,
+        status: 'New' as const,
+        createdAt: new Date().toISOString().split('T')[0],
+        priority: formData.priority,
+        staffNotes: ''
       };
 
-      setTrackers([newTracker, ...trackers]);
+      addComplaint(newComplaint);
       setIsSubmitting(false);
       setShowForm(false);
-      setFormData({ category: '', location: '', headline: '', description: '' }); // Reset
+      setFormData({ category: '', location: '', headline: '', description: '', priority: 'Medium' }); // Reset
     }, 1500);
   };
 
@@ -61,11 +64,11 @@ export const CitizenDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg">
           <p className="text-xs font-bold text-indigo-100 uppercase tracking-widest">Active Complaints</p>
-          <h4 className="text-3xl font-black mt-2">{trackers.filter(t => t.status !== 'Resolved').length}</h4>
+          <h4 className="text-3xl font-black mt-2">{complaints.filter(c => c.status !== 'Resolved' && c.status !== 'Rejected').length}</h4>
         </div>
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Resolved WTD</p>
-          <h4 className="text-3xl font-black text-slate-900 mt-2">124</h4>
+          <h4 className="text-3xl font-black text-slate-900 mt-2">{complaints.filter(c => c.status === 'Resolved').length}</h4>
         </div>
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Avg. Resolution</p>
@@ -77,7 +80,7 @@ export const CitizenDashboard: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <h3 className="text-xl font-bold text-slate-900">My Recent Trackers</h3>
           <div className="space-y-4">
-            {trackers.map((item, idx) => (
+            {complaints.map((item) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -92,11 +95,13 @@ export const CitizenDashboard: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black text-slate-400 uppercase">{item.id}</span>
                       <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${item.status === 'Resolved' ? 'bg-green-100 text-green-700' :
-                        item.status === 'New' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
+                          item.status === 'New' ? 'bg-yellow-100 text-yellow-700' :
+                            item.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-blue-100 text-blue-700'
                         }`}>{item.status}</span>
                     </div>
-                    <h4 className="font-bold text-slate-900 text-lg">{item.title}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.area} • {item.date}</p>
+                    <h4 className="font-bold text-slate-900 text-lg">{item.description.length > 30 ? item.description.substring(0, 30) + '...' : item.description}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.location} • {item.createdAt}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-300" />

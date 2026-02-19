@@ -18,32 +18,11 @@ import {
 } from 'lucide-react';
 import { PlanTodayEvent, PlanTodayAttendee } from '../../types';
 
-// Mock Data for Initial State
-const initialEvents: PlanTodayEvent[] = [
-    {
-        id: 'e-1',
-        title: 'Site Inspection at Green Park',
-        type: 'Inspection',
-        date: new Date().toISOString().split('T')[0],
-        startTime: '10:00',
-        duration: '1h 00m',
-        location: {
-            name: 'Green Park, Block A',
-            address: 'Sector 4, City Center',
-        },
-        attendees: [
-            { id: 'a-1', name: 'Ramesh Gupta', designation: 'Civil Engineer', contact: '9876543210' }
-        ],
-        purpose: 'Inspect the ongoing construction of the community center.',
-        status: 'Scheduled',
-        createdAt: new Date().toISOString(),
-        createdBy: 'u-pa-1'
-    }
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const PlanTodayPaPage: React.FC = () => {
+    const { events, addEvent } = useMockData();
     const [view, setView] = useState<'list' | 'create'>('list');
-    const [events, setEvents] = useState<PlanTodayEvent[]>(initialEvents);
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     // Form State
@@ -71,7 +50,7 @@ export const PlanTodayPaPage: React.FC = () => {
             createdBy: 'u-pa-1'
         };
 
-        setEvents([...events, event]);
+        addEvent(event);
         setView('list');
         setNewEvent({ type: 'Visit', attendees: [] });
     };
@@ -150,8 +129,8 @@ export const PlanTodayPaPage: React.FC = () => {
                                     <Card key={event.id} className="hover:shadow-md transition-shadow group border-slate-200 overflow-hidden" delay={idx * 0.05}>
                                         <div className="flex flex-col md:flex-row gap-6 relative">
                                             <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${event.type === 'Visit' ? 'bg-indigo-500' :
-                                                    event.type === 'Meeting' ? 'bg-orange-500' :
-                                                        event.type === 'Inspection' ? 'bg-red-500' : 'bg-blue-500'
+                                                event.type === 'Meeting' ? 'bg-orange-500' :
+                                                    event.type === 'Inspection' ? 'bg-red-500' : 'bg-blue-500'
                                                 }`} />
 
                                             {/* Time Column */}

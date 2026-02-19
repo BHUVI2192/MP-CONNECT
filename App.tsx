@@ -2,6 +2,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MockDataProvider } from './context/MockDataContext';
 import { Sidebar } from './components/Sidebar';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -79,52 +80,54 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <HashRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
+      <MockDataProvider>
+        <HashRouter>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
 
-            {/* Isolated Login Portals */}
-            <Route path="/login" element={<LoginPage portalType="citizen" />} />
-            <Route path="/official/secure-access" element={<LoginPage portalType="official" />} />
+              {/* Isolated Login Portals */}
+              <Route path="/login" element={<LoginPage portalType="citizen" />} />
+              <Route path="/official/secure-access" element={<LoginPage portalType="official" />} />
 
-            {/* MP Routes (Protected Official) */}
-            <Route path="/mp" element={<ProtectedRoute officialOnly><MpDashboard /></ProtectedRoute>} />
-            <Route path="/mp/live" element={<ProtectedRoute officialOnly><LiveLocationPage /></ProtectedRoute>} />
-            <Route path="/mp/tours" element={<ProtectedRoute officialOnly><ToursMpPage /></ProtectedRoute>} />
-            <Route path="/mp/mplads" element={<ProtectedRoute officialOnly><MpladsMpPage /></ProtectedRoute>} />
-            <Route path="/mp/complaints" element={<ProtectedRoute officialOnly><ComplaintsMpPage /></ProtectedRoute>} />
-            <Route path="/mp/works" element={<ProtectedRoute officialOnly><WorksMpPage /></ProtectedRoute>} />
+              {/* MP Routes (Protected Official) */}
+              <Route path="/mp" element={<ProtectedRoute officialOnly><MpDashboard /></ProtectedRoute>} />
+              <Route path="/mp/live" element={<ProtectedRoute officialOnly><LiveLocationPage /></ProtectedRoute>} />
+              <Route path="/mp/tours" element={<ProtectedRoute officialOnly><ToursMpPage /></ProtectedRoute>} />
+              <Route path="/mp/mplads" element={<ProtectedRoute officialOnly><MpladsMpPage /></ProtectedRoute>} />
+              <Route path="/mp/complaints" element={<ProtectedRoute officialOnly><ComplaintsMpPage /></ProtectedRoute>} />
+              <Route path="/mp/works" element={<ProtectedRoute officialOnly><WorksMpPage /></ProtectedRoute>} />
 
-            {/* PA Routes (Protected Official) */}
-            <Route path="/pa" element={<ProtectedRoute officialOnly><PaDashboard /></ProtectedRoute>} />
-            <Route path="/pa/plan-today" element={<ProtectedRoute officialOnly><PlanTodayPaPage /></ProtectedRoute>} />
-            <Route path="/pa/letters" element={<ProtectedRoute officialOnly><LettersPaPage /></ProtectedRoute>} />
-            <Route path="/pa/tours" element={<ProtectedRoute officialOnly><ToursPaPage /></ProtectedRoute>} />
-            <Route path="/pa/greetings" element={<ProtectedRoute officialOnly><GreetingsPaPage /></ProtectedRoute>} />
-            <Route path="/pa/complaints" element={<ProtectedRoute officialOnly><ComplaintsPaPage /></ProtectedRoute>} />
-            <Route path="/pa/daybook" element={<ProtectedRoute officialOnly><DaybookPaPage /></ProtectedRoute>} />
+              {/* PA Routes (Protected Official) */}
+              <Route path="/pa" element={<ProtectedRoute officialOnly><PaDashboard /></ProtectedRoute>} />
+              <Route path="/pa/plan-today" element={<ProtectedRoute officialOnly><PlanTodayPaPage /></ProtectedRoute>} />
+              <Route path="/pa/letters" element={<ProtectedRoute officialOnly><LettersPaPage /></ProtectedRoute>} />
+              <Route path="/pa/tours" element={<ProtectedRoute officialOnly><ToursPaPage /></ProtectedRoute>} />
+              <Route path="/pa/greetings" element={<ProtectedRoute officialOnly><GreetingsPaPage /></ProtectedRoute>} />
+              <Route path="/pa/complaints" element={<ProtectedRoute officialOnly><ComplaintsPaPage /></ProtectedRoute>} />
+              <Route path="/pa/daybook" element={<ProtectedRoute officialOnly><DaybookPaPage /></ProtectedRoute>} />
 
-            {/* Staff Routes (Protected Official) */}
-            <Route path="/staff" element={<ProtectedRoute officialOnly><StaffDashboard /></ProtectedRoute>} />
-            <Route path="/staff/plan-today" element={<ProtectedRoute officialOnly><PlanTodayStaffPage /></ProtectedRoute>} />
-            <Route path="/staff/entry" element={<ProtectedRoute officialOnly><WorksEntryPage /></ProtectedRoute>} />
-            <Route path="/staff/media" element={<ProtectedRoute officialOnly><MediaManagerPage /></ProtectedRoute>} />
-            <Route path="/staff/complaints" element={<ProtectedRoute officialOnly><StaffComplaintsPage /></ProtectedRoute>} />
-            <Route path="/staff/letters" element={<ProtectedRoute officialOnly><StaffLettersPage /></ProtectedRoute>} />
-            <Route path="/staff/tours" element={<ProtectedRoute officialOnly><StaffToursPage /></ProtectedRoute>} />
-            <Route path="/staff/audit" element={<ProtectedRoute officialOnly><PlaceholderPage title="System Audit Logs" /></ProtectedRoute>} />
+              {/* Staff Routes (Protected Official) */}
+              <Route path="/staff" element={<ProtectedRoute officialOnly><StaffDashboard /></ProtectedRoute>} />
+              <Route path="/staff/plan-today" element={<ProtectedRoute officialOnly><PlanTodayStaffPage /></ProtectedRoute>} />
+              <Route path="/staff/entry" element={<ProtectedRoute officialOnly><WorksEntryPage /></ProtectedRoute>} />
+              <Route path="/staff/media" element={<ProtectedRoute officialOnly><MediaManagerPage /></ProtectedRoute>} />
+              <Route path="/staff/complaints" element={<ProtectedRoute officialOnly><StaffComplaintsPage /></ProtectedRoute>} />
+              <Route path="/staff/letters" element={<ProtectedRoute officialOnly><StaffLettersPage /></ProtectedRoute>} />
+              <Route path="/staff/tours" element={<ProtectedRoute officialOnly><StaffToursPage /></ProtectedRoute>} />
+              <Route path="/staff/audit" element={<ProtectedRoute officialOnly><PlaceholderPage title="System Audit Logs" /></ProtectedRoute>} />
 
-            {/* Citizen Routes (Protected Public) */}
-            <Route path="/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
-            <Route path="/citizen/new" element={<ProtectedRoute><PlaceholderPage title="Submit Complaint" /></ProtectedRoute>} />
-            <Route path="/citizen/schedule" element={<ProtectedRoute><PlaceholderPage title="Public Tour Schedule" /></ProtectedRoute>} />
+              {/* Citizen Routes (Protected Public) */}
+              <Route path="/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
+              <Route path="/citizen/new" element={<ProtectedRoute><PlaceholderPage title="Submit Complaint" /></ProtectedRoute>} />
+              <Route path="/citizen/schedule" element={<ProtectedRoute><PlaceholderPage title="Public Tour Schedule" /></ProtectedRoute>} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppLayout>
-      </HashRouter>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AppLayout>
+        </HashRouter>
+      </MockDataProvider>
     </AuthProvider>
   );
 };

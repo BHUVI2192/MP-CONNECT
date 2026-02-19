@@ -20,32 +20,10 @@ import {
 } from 'lucide-react';
 import { TourProgram, TourParticipant } from '../../types';
 
-// Mock Data
-const initialTours: TourProgram[] = [
-  {
-    id: 'TOUR-2024-001',
-    title: 'Flood Relief Inspection',
-    type: 'Inspection',
-    startDate: '2024-05-28',
-    startTime: '09:00',
-    duration: '4h',
-    location: { name: 'Rampur Village', address: 'North Block, Sector 4' },
-    status: 'Scheduled',
-    participants: [
-      { id: '1', name: 'Sarpanch Singh', role: 'Sarpanch', contact: '9876543210', notified: true },
-      { id: '2', name: 'BDO Sharma', role: 'Official', contact: '9876543211', notified: true }
-    ],
-    instructions: 'Ensure relief kits are ready.',
-    notificationLog: [
-      { recipientName: 'Sarpanch Singh', channel: 'WhatsApp', status: 'Sent', timestamp: '2024-05-20 10:00' }
-    ],
-    createdAt: '2024-05-20',
-    createdBy: 'PA-001'
-  }
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const ToursPaPage: React.FC = () => {
-  const [tours, setTours] = useState<TourProgram[]>(initialTours);
+  const { tours, addTour } = useMockData();
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'Scheduled' | 'Completed'>('Scheduled');
 
@@ -95,7 +73,7 @@ export const ToursPaPage: React.FC = () => {
     tour.notificationLog = logs;
     tour.participants.forEach(p => p.notified = true);
 
-    setTours([tour, ...tours]);
+    addTour(tour);
     setShowScheduleForm(false);
     setNewTour({ title: '', type: 'Official Visit', startDate: '', startTime: '', duration: '', location: { name: '', address: '' }, participants: [], instructions: '' });
   };

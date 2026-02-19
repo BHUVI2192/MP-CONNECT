@@ -21,14 +21,11 @@ import {
 } from 'lucide-react';
 import { Complaint } from '../../types';
 
-const mockStaffComplaints: Complaint[] = [
-   { id: 'CMP-8821', citizenName: 'Aman Varma', category: 'Water Supply', location: 'West Enclave', status: 'Pending Verification', createdAt: '2024-05-20', description: 'Severe water shortage for 48 hours. Attached electricity bill and photo of dry tap.', priority: 'High', attachments: ['https://picsum.photos/seed/ev1/400/300', 'https://picsum.photos/seed/ev2/400/300'] },
-   { id: 'CMP-9122', citizenName: 'Suresh Raina', category: 'Electricity', location: 'Sector 4', status: 'Pending Verification', createdAt: '2024-05-18', description: 'Fluctuating voltage damaging appliances. Video attached showing sparks.', priority: 'Medium', attachments: ['https://picsum.photos/seed/ev3/400/300'] },
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const StaffComplaintsPage: React.FC = () => {
-   const [activeFilter, setActiveFilter] = useState('Pending Verification');
-   const [complaints, setComplaints] = useState<Complaint[]>(mockStaffComplaints);
+   const { complaints, updateComplaintStatus } = useMockData();
+   const [activeFilter, setActiveFilter] = useState('New');
    const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
    // Verification State
@@ -39,28 +36,14 @@ export const StaffComplaintsPage: React.FC = () => {
 
    const handleVerify = () => {
       if (!selectedComplaint) return;
-
-      const updated = complaints.map(c =>
-         c.id === selectedComplaint.id
-            ? { ...c, status: 'Forwarded' as const, priority: verifyForm.priority, staffNotes: verifyForm.notes }
-            : c
-      );
-
-      setComplaints(updated);
+      updateComplaintStatus(selectedComplaint.id, 'Verified', verifyForm.notes);
       setSelectedComplaint(null);
       setVerifyForm({ priority: 'Medium', notes: '' });
    };
 
    const handleReject = () => {
       if (!selectedComplaint) return;
-
-      const updated = complaints.map(c =>
-         c.id === selectedComplaint.id
-            ? { ...c, status: 'Rejected' as const, staffNotes: verifyForm.notes }
-            : c
-      );
-
-      setComplaints(updated);
+      updateComplaintStatus(selectedComplaint.id, 'Rejected', verifyForm.notes);
       setSelectedComplaint(null);
       setVerifyForm({ priority: 'Medium', notes: '' });
    };
@@ -78,14 +61,14 @@ export const StaffComplaintsPage: React.FC = () => {
          </header>
 
          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar bg-slate-100 p-1.5 rounded-2xl w-fit">
-            {['Pending Verification', 'Verified', 'Forwarded', 'Rejected'].map((f) => (
+            {['New', 'Verified', 'Forwarded', 'Rejected', 'Resolved'].map((f) => (
                <button
                   key={f}
                   onClick={() => setActiveFilter(f)}
                   className={`px-6 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${activeFilter === f ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-white/50'
                      }`}
                >
-                  {f}
+                  {f === 'New' ? 'Pending Verification' : f}
                </button>
             ))}
          </div>
@@ -131,7 +114,7 @@ export const StaffComplaintsPage: React.FC = () => {
                            </div>
                         </div>
 
-                        {item.status === 'Pending Verification' && (
+                        {item.status === 'New' && (
                            <div className="lg:w-72 bg-slate-50/50 border-t lg:border-t-0 lg:border-l border-slate-100 p-8 flex flex-col justify-center gap-3">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Staff Verification Action</p>
                               <Button variant="primary" fullWidth className="rounded-2xl shadow-lg shadow-indigo-100 h-12" onClick={() => setSelectedComplaint(item)}>
@@ -213,7 +196,7 @@ export const StaffComplaintsPage: React.FC = () => {
                            </div>
                         </div>
 
-                        {selectedComplaint.status === 'Pending Verification' ? (
+                        {selectedComplaint.status === 'New' ? (
                            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                               <Button fullWidth size="sm" className="rounded-lg" onClick={handleVerify}>
                                  Verify & Forward <ArrowRight className="w-3 h-3 ml-2" />

@@ -16,39 +16,12 @@ import {
 } from 'lucide-react';
 import { Letter } from '../../types';
 
-const mockDrafts: Letter[] = [
-    {
-        id: 'LTR-2024-001',
-        type: 'Central',
-        department: 'Finance',
-        title: 'Request for Fund Release - JJ Cluster Development',
-        content: 'Formal request for the release of pending funds...',
-        status: 'Pending',
-        version: 1,
-        tags: ['Funds', 'Development'],
-        createdAt: '2024-05-20',
-        updatedAt: '2024-05-20',
-        senderId: 'STAFF-001'
-    },
-    {
-        id: 'LTR-2024-002',
-        type: 'State',
-        department: 'PWD',
-        title: 'Road Repair Request - Sector 4',
-        content: 'Urgent repair needed for the main road...',
-        status: 'Completed',
-        version: 2,
-        tags: ['Roads', 'Urgent'],
-        createdAt: '2024-05-18',
-        updatedAt: '2024-05-19',
-        senderId: 'STAFF-001'
-    }
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const StaffLettersPage: React.FC = () => {
+    const { letters, addLetter } = useMockData();
     const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'Completed'>('All');
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [drafts, setDrafts] = useState<Letter[]>(mockDrafts);
 
     const [newDraft, setNewDraft] = useState({
         type: 'Central',
@@ -73,12 +46,12 @@ export const StaffLettersPage: React.FC = () => {
             senderId: 'STAFF-001'
         };
 
-        setDrafts([draft, ...drafts]);
+        addLetter(draft);
         setShowUploadModal(false);
         setNewDraft({ type: 'Central', department: '', title: '', content: '', tags: '' });
     };
 
-    const filteredDrafts = drafts.filter(d => activeTab === 'All' || d.status === activeTab);
+    const filteredDrafts = letters.filter(d => activeTab === 'All' || d.status === activeTab);
 
     return (
         <div className="space-y-8 pb-20 max-w-6xl mx-auto">
@@ -119,7 +92,7 @@ export const StaffLettersPage: React.FC = () => {
                                     <div className="flex items-center gap-3 mb-1">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{draft.id}</span>
                                         <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${draft.type === 'Central' ? 'bg-blue-100 text-blue-600' :
-                                                draft.type === 'State' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'
+                                            draft.type === 'State' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'
                                             }`}>{draft.type}</span>
                                         <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase">{draft.department}</span>
                                     </div>

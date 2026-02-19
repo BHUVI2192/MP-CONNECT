@@ -16,30 +16,10 @@ import {
 } from 'lucide-react';
 import { TourProgram } from '../../types';
 
-// Mock Data (Shared with PA Page for consistency in demo)
-const initialTours: TourProgram[] = [
-    {
-        id: 'TOUR-2024-001',
-        title: 'Flood Relief Inspection',
-        type: 'Inspection',
-        startDate: '2024-05-28',
-        startTime: '09:00',
-        duration: '4h',
-        location: { name: 'Rampur Village', address: 'North Block, Sector 4' },
-        status: 'Scheduled',
-        participants: [
-            { id: '1', name: 'Sarpanch Singh', role: 'Sarpanch', contact: '9876543210', notified: true },
-            { id: '2', name: 'BDO Sharma', role: 'Official', contact: '9876543211', notified: true }
-        ],
-        instructions: 'Ensure relief kits are ready.',
-        notificationLog: [],
-        createdAt: '2024-05-20',
-        createdBy: 'PA-001'
-    }
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const StaffToursPage: React.FC = () => {
-    const [tours, setTours] = useState<TourProgram[]>(initialTours);
+    const { tours, updateTour } = useMockData();
     const [selectedTour, setSelectedTour] = useState<TourProgram | null>(null);
     const [showDocModal, setShowDocModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Completed'>('Pending');
@@ -85,7 +65,7 @@ export const StaffToursPage: React.FC = () => {
             // Update participant attendance in a real app
         };
 
-        setTours(tours.map(t => t.id === selectedTour.id ? updatedTour : t));
+        updateTour(updatedTour);
         setShowDocModal(false);
         setSelectedTour(null);
     };

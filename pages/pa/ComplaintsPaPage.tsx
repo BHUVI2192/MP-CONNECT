@@ -22,13 +22,11 @@ import {
 } from 'lucide-react';
 import { Complaint } from '../../types';
 
-const mockVerified: Complaint[] = [
-   { id: 'CMP-8821', citizenName: 'Aman Varma', category: 'Water Supply', location: 'West Enclave', status: 'Forwarded', createdAt: '2024-05-20', description: 'Severe water shortage for 48 hours.', priority: 'High', staffNotes: 'Verification complete. Images confirmed. Requires Jal Board intervention.' },
-   { id: 'CMP-9122', citizenName: 'Suresh Raina', category: 'Electricity', location: 'Sector 4', status: 'Forwarded', createdAt: '2024-05-18', description: 'Fluctuating voltage damaging appliances.', priority: 'Medium', staffNotes: 'Verified video of sparks. Power grid issue suspected.' },
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const ComplaintsPaPage: React.FC = () => {
-   const [activeTab, setActiveTab] = useState('Forwarded');
+   const { complaints, updateComplaintStatus } = useMockData();
+   const [activeTab, setActiveTab] = useState('Verified');
    const [isExporting, setIsExporting] = useState(false);
    const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
@@ -46,11 +44,14 @@ export const ComplaintsPaPage: React.FC = () => {
       // Simulate Export Process
       setTimeout(() => {
          setIsExporting(false);
+         if (selectedComplaint) {
+            updateComplaintStatus(selectedComplaint.id, 'Forwarded', `Dispatched to ${dispatchForm.department}. Notes: ${dispatchForm.notes}`);
+         }
          // In a real app, this would update the status locally or refetch
-         alert(`Successfully Exported ${dispatchForm.exportType} to ${dispatchForm.whatsappNumber || 'Default Number'} and Dispatched to ${dispatchForm.department}`);
+         // alert(`Successfully Exported ${dispatchForm.exportType} to ${dispatchForm.whatsappNumber || 'Default Number'} and Dispatched to ${dispatchForm.department}`);
          setSelectedComplaint(null);
          setDispatchForm({ department: '', notes: '', exportType: 'Summary', whatsappNumber: '' });
-      }, 2000);
+      }, 1000);
    };
 
    return (
@@ -67,7 +68,7 @@ export const ComplaintsPaPage: React.FC = () => {
          </header>
 
          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
-            {['Forwarded', 'Dispatched', 'Resolved'].map((tab) => (
+            {['Verified', 'Forwarded', 'Resolved'].map((tab) => (
                <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -80,7 +81,7 @@ export const ComplaintsPaPage: React.FC = () => {
          </div>
 
          <div className="grid grid-cols-1 gap-4">
-            {mockVerified.filter(c => c.status === activeTab).map((complaint) => (
+            {complaints.filter(c => c.status === activeTab).map((complaint) => (
                <motion.div key={complaint.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                   <Card className="hover:border-indigo-300 transition-all cursor-pointer group border-slate-200" onClick={() => setSelectedComplaint(complaint)}>
                      <div className="p-6 flex flex-col md:flex-row gap-6 items-center">
@@ -106,7 +107,7 @@ export const ComplaintsPaPage: React.FC = () => {
                </motion.div>
             ))}
 
-            {mockVerified.filter(c => c.status === activeTab).length === 0 && (
+            {complaints.filter(c => c.status === activeTab).length === 0 && (
                <div className="py-20 text-center">
                   <p className="text-slate-400 font-bold">No complaints in this queue.</p>
                </div>

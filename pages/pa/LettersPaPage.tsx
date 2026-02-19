@@ -17,50 +17,10 @@ import {
 } from 'lucide-react';
 import { Letter } from '../../types';
 
-const mockLetters: Letter[] = [
-  {
-    id: 'LTR-2024-001',
-    type: 'Central',
-    department: 'Finance',
-    title: 'Request for Fund Release - JJ Cluster Development',
-    content: 'Formal request for the release of pending funds...',
-    status: 'Pending',
-    version: 1,
-    tags: ['Funds', 'Development'],
-    createdAt: '2024-05-20',
-    updatedAt: '2024-05-20',
-    senderId: 'STAFF-001'
-  },
-  {
-    id: 'LTR-2024-002',
-    type: 'State',
-    department: 'PWD',
-    title: 'Road Repair Request - Sector 4',
-    content: 'Urgent repair needed for the main road...',
-    status: 'Completed',
-    version: 2,
-    tags: ['Roads', 'Urgent'],
-    createdAt: '2024-05-18',
-    updatedAt: '2024-05-19',
-    senderId: 'STAFF-001'
-  },
-  {
-    id: 'LTR-2024-003',
-    type: 'Devotional',
-    department: 'Community',
-    title: 'Navratri Greeting Draft',
-    content: 'Draft for community greetings...',
-    status: 'Pending',
-    version: 1,
-    tags: ['Festival', 'Greeting'],
-    createdAt: '2024-05-21',
-    updatedAt: '2024-05-21',
-    senderId: 'STAFF-002'
-  },
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const LettersPaPage: React.FC = () => {
-  const [letters, setLetters] = useState<Letter[]>(mockLetters);
+  const { letters, updateLetterStatus } = useMockData();
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
   const [activeTab, setActiveTab] = useState<'Pending' | 'Completed'>('Pending');
 
@@ -69,7 +29,7 @@ export const LettersPaPage: React.FC = () => {
   );
 
   const handleStatusUpdate = (id: string, newStatus: 'Pending' | 'In Progress' | 'Completed') => {
-    setLetters(letters.map(l => l.id === id ? { ...l, status: newStatus } : l));
+    updateLetterStatus(id, newStatus);
     setSelectedLetter(null);
   };
 
@@ -147,7 +107,7 @@ export const LettersPaPage: React.FC = () => {
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${letter.type === 'Central' ? 'bg-blue-50 text-blue-600' :
-                          letter.type === 'State' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
+                        letter.type === 'State' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
                         }`}>
                         <FileText className="w-5 h-5" />
                       </div>
@@ -165,7 +125,7 @@ export const LettersPaPage: React.FC = () => {
                   </td>
                   <td className="px-8 py-5">
                     <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg flex items-center gap-1.5 w-fit ${letter.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        letter.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                      letter.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
                       }`}>
                       {letter.status === 'Completed' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                       {letter.status}
@@ -201,7 +161,7 @@ export const LettersPaPage: React.FC = () => {
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <span className={`text-[10px] font-black px-2 py-1 rounded uppercase mb-2 inline-block ${selectedLetter.type === 'Central' ? 'bg-blue-100 text-blue-600' :
-                        selectedLetter.type === 'State' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'
+                      selectedLetter.type === 'State' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'
                       }`}>{selectedLetter.type}</span>
                     <h3 className="text-2xl font-black text-slate-900 leading-tight">{selectedLetter.title}</h3>
                     <p className="text-xs font-bold text-slate-400 mt-1">{selectedLetter.department} • Version {selectedLetter.version}</p>

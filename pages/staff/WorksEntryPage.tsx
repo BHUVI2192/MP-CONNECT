@@ -3,14 +3,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Building2, 
-  FileText, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Building2,
+  FileText,
+  CheckCircle2,
+  Clock,
   IndianRupee,
   MoreVertical,
   X,
@@ -19,14 +19,50 @@ import {
 } from 'lucide-react';
 import { Project } from '../../types';
 
-const mockProjects: Project[] = [
-  { id: 'PRJ-201', name: 'NH-24 Expansion (Block C)', category: 'Roads', status: 'In Progress', progress: 65, budget: 45000000, village: 'Seelampur', sanctionOrderNo: 'SO-101/2024', startDate: '2024-01-15' },
-  { id: 'PRJ-202', name: 'Primary School Solar Grid', category: 'School', status: 'Planned', progress: 0, budget: 1200000, village: 'Rampur', sanctionOrderNo: 'SO-105/2024', startDate: '2024-06-01' },
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const WorksEntryPage: React.FC = () => {
+  const { works, addWork } = useMockData();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Form State
+  const [newWork, setNewWork] = useState<Partial<Project>>({
+    name: '',
+    category: 'Roads',
+    status: 'Planned',
+    progress: 0,
+    budget: 0,
+    village: '',
+    sanctionOrderNo: '',
+    startDate: ''
+  });
+
+  const handleCreateWork = () => {
+    if (!newWork.name || !newWork.village) return;
+
+    const work: Project = {
+      id: `PRJ-${Math.floor(Math.random() * 1000)}`,
+      name: newWork.name!,
+      category: newWork.category as any,
+      status: 'Planned',
+      progress: 0,
+      budget: newWork.budget || 0,
+      village: newWork.village!,
+      sanctionOrderNo: newWork.sanctionOrderNo || `SO-${Math.floor(Math.random() * 100)}/2024`,
+      startDate: new Date().toISOString().split('T')[0]
+    };
+
+    addWork(work);
+    setShowAddModal(false);
+    setNewWork({ name: '', category: 'Roads', status: 'Planned', progress: 0, budget: 0, village: '', sanctionOrderNo: '', startDate: '' });
+  };
+
+  const filteredWorks = works.filter(w =>
+    w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.village.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-20">
@@ -62,9 +98,9 @@ export const WorksEntryPage: React.FC = () => {
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
           <div className="relative w-full md:w-96">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search by ID, name or village..." 
+            <input
+              type="text"
+              placeholder="Search by ID, name or village..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-3 text-sm bg-slate-50 border border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl transition-all outline-none"
@@ -88,7 +124,7 @@ export const WorksEntryPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {mockProjects.map((project) => (
+              {filteredWorks.map((project) => (
                 <tr key={project.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
@@ -114,10 +150,9 @@ export const WorksEntryPage: React.FC = () => {
                   </td>
                   <td className="px-8 py-5 text-sm font-black text-slate-900">₹{(project.budget / 10000000).toFixed(1)} Cr</td>
                   <td className="px-8 py-5">
-                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
-                      project.status === 'Completed' ? 'bg-green-100 text-green-700' : 
+                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${project.status === 'Completed' ? 'bg-green-100 text-green-700' :
                       project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
-                    }`}>
+                      }`}>
                       {project.status}
                     </span>
                   </td>
@@ -147,19 +182,43 @@ export const WorksEntryPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Project Name</label>
-                    <input type="text" placeholder="e.g. Community Center" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Community Center"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      value={newWork.name}
+                      onChange={(e) => setNewWork({ ...newWork, name: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Village/Location</label>
-                    <input type="text" placeholder="e.g. Shahdara" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Shahdara"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      value={newWork.village}
+                      onChange={(e) => setNewWork({ ...newWork, village: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sanction Order No.</label>
-                    <input type="text" placeholder="SO/..." className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                    <input
+                      type="text"
+                      placeholder="SO/..."
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      value={newWork.sanctionOrderNo}
+                      onChange={(e) => setNewWork({ ...newWork, sanctionOrderNo: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Budget (INR)</label>
-                    <input type="number" placeholder="5,00,000" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                    <input
+                      type="number"
+                      placeholder="5,00,000"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      value={newWork.budget || ''}
+                      onChange={(e) => setNewWork({ ...newWork, budget: Number(e.target.value) })}
+                    />
                   </div>
                 </div>
 
@@ -171,7 +230,7 @@ export const WorksEntryPage: React.FC = () => {
 
                 <div className="flex gap-4 mt-10">
                   <Button variant="ghost" fullWidth onClick={() => setShowAddModal(false)}>Cancel</Button>
-                  <Button fullWidth onClick={() => setShowAddModal(false)}>Register Project</Button>
+                  <Button fullWidth onClick={handleCreateWork}>Register Project</Button>
                 </div>
               </div>
             </motion.div>

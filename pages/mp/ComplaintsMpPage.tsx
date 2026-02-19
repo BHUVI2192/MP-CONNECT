@@ -4,14 +4,13 @@ import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
 import { Search, Filter, AlertCircle, Clock, CheckCircle2, MoreVertical, Flag } from 'lucide-react';
 
-const complaints = [
-  { id: 'C-001', citizen: 'Aman Varma', category: 'Water Supply', priority: 'High', status: 'New', date: '2h ago', title: 'Severe water shortage in Sector 4' },
-  { id: 'C-002', citizen: 'Suresh Raina', category: 'Electricity', priority: 'Medium', status: 'In Progress', date: '5h ago', title: 'Frequent power cuts during night' },
-  { id: 'C-003', citizen: 'Deepa Kaur', category: 'Roads', priority: 'Low', status: 'Resolved', date: '1d ago', title: 'Street light repair near community park' },
-  { id: 'C-004', citizen: 'Mohit Singh', category: 'Sanitation', priority: 'High', status: 'In Progress', date: '2d ago', title: 'Garbage collection delay for 3 days' },
-];
+import { useMockData } from '../../context/MockDataContext';
+import { Complaint } from '../../types';
+import { useState } from 'react';
 
 export const ComplaintsMpPage: React.FC = () => {
+  const { complaints, updateComplaintStatus } = useMockData();
+  const [activeTab, setActiveTab] = useState('Forwarded');
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <header className="flex justify-between items-center">
@@ -20,33 +19,45 @@ export const ComplaintsMpPage: React.FC = () => {
           <p className="text-slate-500">Monitor and track resolution of constituent grievances.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline">Advanced Analytics</Button>
-           <Button>Export PDF</Button>
+          <Button variant="outline">Advanced Analytics</Button>
+          <Button>Export PDF</Button>
         </div>
       </header>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-         {[
-           { label: 'Unassigned', count: '12', color: 'bg-slate-100 text-slate-600' },
-           { label: 'In Progress', count: '45', color: 'bg-blue-100 text-blue-600' },
-           { label: 'Resolved Today', count: '08', color: 'bg-green-100 text-green-600' },
-           { label: 'High Priority', count: '05', color: 'bg-red-100 text-red-600' },
-         ].map((stat) => (
-           <Card key={stat.label} className="p-4 border-none shadow-sm flex flex-col items-center text-center">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</span>
-              <span className={`text-2xl font-black mt-1 px-3 py-1 rounded-lg ${stat.color}`}>{stat.count}</span>
-           </Card>
-         ))}
+        {[
+          { label: 'Pending Review', count: complaints.filter(c => c.status === 'Forwarded').length, color: 'bg-blue-100 text-blue-600' },
+          { label: 'Resolved', count: complaints.filter(c => c.status === 'Resolved').length, color: 'bg-green-100 text-green-600' },
+          { label: 'High Priority', count: complaints.filter(c => c.priority === 'High').length, color: 'bg-red-100 text-red-600' },
+        ].map((stat) => (
+          <Card key={stat.label} className="p-4 border-none shadow-sm flex flex-col items-center text-center">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</span>
+            <span className={`text-2xl font-black mt-1 px-3 py-1 rounded-lg ${stat.color}`}>{stat.count}</span>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
+        {['Forwarded', 'Resolved'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
+              }`}
+          >
+            {tab === 'Forwarded' ? 'Pending Review' : tab}
+          </button>
+        ))}
       </div>
 
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search complaints by ID, name, or keywords..." 
+            <input
+              type="text"
+              placeholder="Search complaints by ID, name, or keywords..."
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -68,7 +79,7 @@ export const ComplaintsMpPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {complaints.map((item) => (
+              {complaints.filter(c => c.status === activeTab).map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-start gap-3">
@@ -76,34 +87,38 @@ export const ComplaintsMpPage: React.FC = () => {
                         <AlertCircle className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-900 leading-tight">{item.title}</p>
+                        <p className="text-sm font-bold text-slate-900 leading-tight">{item.description.length > 30 ? item.description.substring(0, 30) + '...' : item.description}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{item.id} • {item.category}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{item.citizen}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{item.citizenName}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${
-                      item.priority === 'High' ? 'text-red-600' : 
-                      item.priority === 'Medium' ? 'text-orange-600' : 'text-slate-400'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${item.priority === 'High' ? 'text-red-600' :
+                        item.priority === 'Medium' ? 'text-orange-600' : 'text-slate-400'
+                      }`}>
                       <Flag className="w-3 h-3" fill="currentColor" /> {item.priority}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                      item.status === 'Resolved' ? 'bg-green-100 text-green-700' : 
-                      item.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                    }`}>
+                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+                        item.status === 'Forwarded' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                      }`}>
                       {item.status === 'Resolved' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {item.status}
+                      {item.status === 'Forwarded' ? 'Under Review' : item.status}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-400 font-medium">{item.date}</td>
+                  <td className="px-6 py-4 text-sm text-slate-400 font-medium">{item.createdAt}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                    {item.status === 'Forwarded' && (
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                        onClick={() => updateComplaintStatus(item.id, 'Resolved')}
+                      >
+                        Resolve
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

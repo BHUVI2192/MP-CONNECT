@@ -13,31 +13,10 @@ import {
 } from 'lucide-react';
 import { PlanTodayEvent } from '../../types';
 
-// Mock Data (Shared with PA for demo purposes)
-const initialEvents: PlanTodayEvent[] = [
-    {
-        id: 'e-1',
-        title: 'Site Inspection at Green Park',
-        type: 'Inspection',
-        date: new Date().toISOString().split('T')[0],
-        startTime: '10:00',
-        duration: '1h 00m',
-        location: {
-            name: 'Green Park, Block A',
-            address: 'Sector 4, City Center',
-        },
-        attendees: [
-            { id: 'a-1', name: 'Ramesh Gupta', designation: 'Civil Engineer', contact: '9876543210' }
-        ],
-        purpose: 'Inspect the ongoing construction of the community center.',
-        status: 'Scheduled',
-        createdAt: new Date().toISOString(),
-        createdBy: 'u-pa-1'
-    }
-];
+import { useMockData } from '../../context/MockDataContext';
 
 export const PlanTodayStaffPage: React.FC = () => {
-    const [events, setEvents] = useState<PlanTodayEvent[]>(initialEvents);
+    const { events, updateEvent } = useMockData();
     const [selectedEvent, setSelectedEvent] = useState<PlanTodayEvent | null>(null);
     const [docForm, setDocForm] = useState({
         actualStartTime: '',
@@ -57,7 +36,7 @@ export const PlanTodayStaffPage: React.FC = () => {
             }
         };
 
-        setEvents(events.map(e => e.id === selectedEvent.id ? updatedEvent : e));
+        updateEvent(updatedEvent);
         setSelectedEvent(null);
         // Reset form
         setDocForm({ actualStartTime: '', actualEndTime: '', summary: '', outcomes: '' });
@@ -80,8 +59,8 @@ export const PlanTodayStaffPage: React.FC = () => {
                                 key={event.id}
                                 onClick={() => setSelectedEvent(event)}
                                 className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedEvent?.id === event.id
-                                        ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200'
-                                        : 'bg-white border-slate-200 hover:border-indigo-200 hover:shadow-sm'
+                                    ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200'
+                                    : 'bg-white border-slate-200 hover:border-indigo-200 hover:shadow-sm'
                                     }`}
                             >
                                 <div className="flex justify-between items-start mb-2">
