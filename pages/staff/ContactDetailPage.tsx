@@ -1,458 +1,383 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  Phone, 
-  MessageCircle, 
-  Mail, 
-  Edit2, 
-  Trash2, 
-  Star, 
-  Share2, 
-  MapPin, 
-  Calendar, 
-  Tag, 
-  User, 
-  Clock, 
-  Plus, 
-  Send,
-  ChevronDown,
-  ExternalLink,
-  History,
-  CheckCircle2,
-  AlertCircle
+import {
+    Phone,
+    MessageCircle,
+    Mail,
+    Edit2,
+    Trash2,
+    Star,
+    Download,
+    MapPin,
+    Calendar,
+    Tag,
+    FileText,
+    User,
+    ChevronLeft,
+    ChevronRight,
+    Plus,
+    Send,
+    MoreVertical,
+    History,
+    CheckCircle2,
+    Clock
 } from 'lucide-react';
-import { Button } from '../../components/UI/Button';
-import { Contact } from '../../types';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Contact, ContactCategory } from '../../types';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// --- Mock Data ---
-
-const MOCK_CONTACTS: Record<string, Contact> = {
-  '1': {
-    id: '1',
-    name: 'Dr. Rajesh Kumar',
-    designation: 'District Magistrate',
-    organization: 'District Administration',
-    category: 'Government Official',
-    state: 'Karnataka',
-    zilla: 'Mysuru',
-    taluk: 'Mysuru',
-    gp: 'City',
-    village: 'Mysuru',
-    fullAddress: '#12, Officers Colony, Nazarbad, Mysuru - 570010',
-    mobile: '9876543210',
-    altMobile: '0821-2421234',
-    whatsapp: '9876543210',
-    email: 'dm.mysuru@gov.in',
-    isVip: true,
-    photoUrl: 'https://picsum.photos/seed/rajesh/400/400',
-    dob: '1978-05-15',
-    anniversary: '2005-11-20',
-    tags: ['Influencer', 'Key Official', 'Mysuru District'],
-    notes: 'Very supportive of local development initiatives. Prefers morning meetings.',
-    createdBy: 'Admin Staff',
-    createdAt: '2024-01-15',
-  },
-  '2': {
-    id: '2',
-    name: 'Smt. Lakshmi Devi',
-    designation: 'GP President',
-    organization: 'Rampur Gram Panchayat',
-    category: 'Political Leader',
-    state: 'Karnataka',
-    zilla: 'Mysuru',
-    taluk: 'Hunsur',
-    gp: 'Rampur',
-    village: 'Rampur',
-    mobile: '9876543211',
-    email: 'lakshmi.gp@gmail.com',
-    isVip: false,
-    createdAt: '2024-02-10',
-  }
-};
-
-const MOCK_TOURS = [
-  { id: 't1', name: 'Rampur Village Development Inspection', date: '2024-02-15', role: 'Host' },
-  { id: 't2', name: 'Hunsur Taluk Public Outreach', date: '2024-01-20', role: 'Participant' },
+// Reusing dummy data for demonstration
+const DUMMY_CONTACTS: Contact[] = [
+    {
+        id: '1',
+        name: 'Rajesh Kumar',
+        designation: 'Collector',
+        organization: 'District Administration',
+        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Mysuru', gp: 'City', village: 'Nazarbad' },
+        mobile: '+91 98765 43210',
+        email: 'rajesh.kumar@example.com',
+        category: 'Officer',
+        isVip: true,
+        addedAt: '2025-10-01T10:00:00Z',
+        birthday: '1980-05-15',
+        anniversary: '2005-12-10'
+    }
 ];
-
-const MOCK_GREETINGS = [
-  { id: 'g1', event: 'Birthday', date: '2024-05-15', channel: 'WhatsApp', status: 'Delivered' },
-  { id: 'g2', event: 'New Year', date: '2024-01-01', channel: 'SMS', status: 'Sent' },
-  { id: 'g3', event: 'Anniversary', date: '2023-11-20', channel: 'Email', status: 'Opened' },
-];
-
-// --- Sub-components ---
-
-const InfoItem: React.FC<{ label: string; value: React.ReactNode; icon?: any }> = ({ label, value, icon: Icon }) => (
-  <div className="space-y-1.5 group">
-    <div className="flex items-center gap-2">
-      {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-    </div>
-    <div className="text-sm font-bold text-slate-900 break-words">
-      {value || <span className="text-slate-300 italic font-medium">Not provided</span>}
-    </div>
-  </div>
-);
-
-const AccordionSection: React.FC<{ title: string; icon: any; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, icon: Icon, children, defaultOpen = true }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  return (
-    <div className="border border-slate-200 rounded-[2rem] bg-white overflow-hidden shadow-sm">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-6 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Icon className="w-5 h-5" />
-          </div>
-          <h3 className="text-lg font-black text-slate-900 tracking-tight">{title}</h3>
-        </div>
-        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="p-6 pt-0 border-t border-slate-50">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
 
 export const ContactDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'tours' | 'greetings' | 'contacted'>('tours');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const navigate = useNavigate();
+    const { id } = useParams();
+    const [activeTab, setActiveTab] = useState<'tours' | 'greetings' | 'history'>('tours');
+    const [openSections, setOpenSections] = useState({
+        info: true,
+        notes: true,
+        engagement: true
+    });
 
-  const contact = useMemo(() => (id ? MOCK_CONTACTS[id] : null), [id]);
+    const toggleSection = (section: keyof typeof openSections) => {
+        setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
 
-  if (!contact) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6">
-          <AlertCircle className="w-10 h-10" />
+    // Find contact (mocking API call)
+    const contact = useMemo(() => DUMMY_CONTACTS.find(c => c.id === id) || DUMMY_CONTACTS[0], [id]);
+
+    const getInitials = (name: string) => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    };
+
+    const handleAction = (type: string) => {
+        console.log(`Action: ${type} for contact ${contact.id}`);
+        // Implement specific logic for each action
+        if (type === 'edit') navigate(`/staff/contacts/edit/${contact.id}`);
+    };
+
+    const InfoItem = ({ icon: Icon, label, value, fullWidth = false }: { icon: any, label: string, value: string | React.ReactNode, fullWidth?: boolean }) => (
+        <div className={`p-4 bg-gray-50 rounded-2xl border border-gray-100/50 flex flex-col gap-1 ${fullWidth ? 'md:col-span-2' : ''}`}>
+            <div className="flex items-center gap-2 text-gray-400">
+                <Icon size={14} className="shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+            <div className="text-sm font-semibold text-gray-900 truncate">
+                {value || <span className="text-gray-300 italic font-normal">Not provided</span>}
+            </div>
         </div>
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Contact Not Found</h2>
-        <p className="text-slate-500 mt-2 mb-8">The contact you are looking for does not exist or has been removed.</p>
-        <Button onClick={() => navigate('/staff/contacts')}>Back to Contacts</Button>
-      </div>
     );
-  }
 
-  const initials = contact.name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
-
-  const handleExportVCard = () => {
-    console.log('Exporting vCard for:', contact.name);
-    // Logic to generate and download .vcf file
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto pb-20 space-y-8">
-      {/* Header / Back Navigation */}
-      <header className="flex items-center justify-between">
-        <button 
-          onClick={() => navigate('/staff/contacts')}
-          className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-black text-xs uppercase tracking-widest transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Back to List
-        </button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-xl" onClick={handleExportVCard}>
-            <Share2 className="w-4 h-4 mr-2" /> Export vCard
-          </Button>
-          <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate(`/staff/contacts/edit/${contact.id}`)}>
-            <Edit2 className="w-4 h-4 mr-2" /> Edit
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="rounded-xl text-red-600 border-red-100 hover:bg-red-50"
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
-          </Button>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden p-8 md:p-12 relative">
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-600 to-blue-600 opacity-5" />
-        
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-8 relative z-10">
-          <div className="relative">
-            {contact.photoUrl ? (
-              <img 
-                src={contact.photoUrl} 
-                alt={contact.name} 
-                className="w-40 h-40 rounded-[2.5rem] object-cover border-4 border-white shadow-2xl"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-40 h-40 rounded-[2.5rem] bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-5xl border-4 border-white shadow-2xl">
-                {initials}
-              </div>
-            )}
-            {contact.isVip && (
-              <div className="absolute -top-3 -right-3 w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg border-4 border-white" title="VIP Contact">
-                <Star className="w-6 h-6 fill-current" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 text-center md:text-left space-y-4">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">{contact.name}</h1>
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2">
-                <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-black uppercase tracking-widest">
-                  {contact.designation}
-                </span>
-                <span className="text-slate-400 font-bold">•</span>
-                <span className="text-slate-500 font-bold">{contact.organization}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-2">
-              <Button className="rounded-2xl px-6 py-3 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100" onClick={() => window.open(`tel:${contact.mobile}`)}>
-                <Phone className="w-4 h-4 mr-2" /> Call Now
-              </Button>
-              <Button variant="outline" className="rounded-2xl px-6 py-3 border-green-200 text-green-600 hover:bg-green-50" onClick={() => window.open(`https://wa.me/${contact.mobile.replace(/\D/g, '')}`)}>
-                <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
-              </Button>
-              <Button variant="outline" className="rounded-2xl px-6 py-3 border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => window.open(`mailto:${contact.email}`)}>
-                <Mail className="w-4 h-4 mr-2" /> Email
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Info Grid & History */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Details */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Main Info Accordion */}
-          <AccordionSection title="Contact Information" icon={User}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 mt-6">
-              <InfoItem label="Primary Mobile" value={contact.mobile} icon={Phone} />
-              <InfoItem label="Alternate Mobile" value={contact.altMobile} icon={Phone} />
-              <InfoItem label="Email Address" value={contact.email} icon={Mail} />
-              <InfoItem label="WhatsApp" value={contact.whatsapp || contact.mobile} icon={MessageCircle} />
-              <InfoItem label="Category" value={contact.category} icon={Tag} />
-              <InfoItem label="VIP Status" value={contact.isVip ? 'Yes (Priority)' : 'No'} icon={Star} />
-              <InfoItem label="Date of Birth" value={contact.dob} icon={Calendar} />
-              <InfoItem label="Anniversary" value={contact.anniversary} icon={Calendar} />
-            </div>
-          </AccordionSection>
-
-          {/* Location Accordion */}
-          <AccordionSection title="Location & Address" icon={MapPin}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 mt-6">
-              <InfoItem label="State" value={contact.state} />
-              <InfoItem label="Zilla / District" value={contact.zilla} />
-              <InfoItem label="Taluk" value={contact.taluk} />
-              <InfoItem label="Gram Panchayat" value={contact.gp} />
-              <InfoItem label="Village" value={contact.village} />
-              <div className="sm:col-span-2">
-                <InfoItem label="Full Address" value={contact.fullAddress} icon={MapPin} />
-              </div>
-            </div>
-          </AccordionSection>
-
-          {/* Additional Info Accordion */}
-          <AccordionSection title="Notes & Metadata" icon={Clock}>
-            <div className="space-y-8 mt-6">
-              <div className="space-y-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tags</span>
-                <div className="flex flex-wrap gap-2">
-                  {contact.tags?.map(tag => (
-                    <span key={tag} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black border border-indigo-100">
-                      {tag}
-                    </span>
-                  )) || <span className="text-slate-300 italic text-xs">No tags added</span>}
+    return (
+        <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+            {/* Header / Back */}
+            <div className="flex items-center justify-between mb-8">
+                <button
+                    onClick={() => navigate('/staff/contacts')}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-primary hover:text-primary transition-all shadow-sm group"
+                >
+                    <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                    Back to Contact Book
+                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => handleAction('edit')} className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm">
+                        <Edit2 size={20} />
+                    </button>
+                    <button className="p-2.5 bg-white border border-red-100 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-all shadow-sm">
+                        <Trash2 size={20} />
+                    </button>
                 </div>
-              </div>
-              <InfoItem label="Internal Notes" value={contact.notes} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 border-t border-slate-50">
-                <InfoItem label="Created By" value={contact.createdBy} />
-                <InfoItem label="Created Date" value={contact.createdAt} />
-              </div>
-            </div>
-          </AccordionSection>
-        </div>
-
-        {/* Right Column: History & Quick Actions */}
-        <div className="space-y-8">
-          {/* Quick Actions Card */}
-          <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-            <h3 className="text-xl font-black tracking-tight mb-6">Engagement</h3>
-            <div className="space-y-4">
-              <Button fullWidth className="rounded-2xl py-4 bg-white text-slate-900 hover:bg-slate-100 border-none shadow-lg">
-                <Plus className="w-4 h-4 mr-2" /> Add to Tour
-              </Button>
-              <Button fullWidth variant="outline" className="rounded-2xl py-4 border-white/20 text-white hover:bg-white/10">
-                <Send className="w-4 h-4 mr-2" /> Send Greeting
-              </Button>
-            </div>
-            <div className="mt-8 pt-8 border-t border-white/10">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                <span>Last Contacted</span>
-                <span className="text-white">2 days ago</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Greeting sent via WhatsApp</span>
-              </div>
-            </div>
-          </div>
-
-          {/* History Tabs */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[500px]">
-            <div className="p-6 border-b border-slate-100">
-              <div className="flex items-center gap-2 mb-4">
-                <History className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-black text-slate-900 tracking-tight">Activity History</h3>
-              </div>
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                {(['tours', 'greetings'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-                      activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <AnimatePresence mode="wait">
-                {activeTab === 'tours' ? (
-                  <motion.div
-                    key="tours"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-4"
-                  >
-                    {MOCK_TOURS.map(tour => (
-                      <div key={tour.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:bg-white hover:shadow-md transition-all">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{tour.role}</span>
-                          <span className="text-[10px] font-bold text-slate-400">{tour.date}</span>
+            {/* Hero Section */}
+            <div className="relative overflow-hidden bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-slate-200/50 mb-8">
+                {/* Decorative Background */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent -z-10"></div>
+
+                <div className="p-8 md:p-12">
+                    <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+                        {/* Profile Image */}
+                        <div className="relative shrink-0">
+                            {contact.photoUrl ? (
+                                <img src={contact.photoUrl} alt={contact.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-xl" />
+                            ) : (
+                                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary/10 flex items-center justify-center border-4 border-white shadow-xl">
+                                    <span className="text-4xl md:text-5xl font-black text-primary">{getInitials(contact.name)}</span>
+                                </div>
+                            )}
+                            {contact.isVip && (
+                                <div className="absolute -top-2 -right-2 w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center border-4 border-white shadow-lg text-white" title="VIP Contact">
+                                    <Star size={20} fill="currentColor" />
+                                </div>
+                            )}
                         </div>
-                        <h4 className="text-sm font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors">
-                          {tour.name}
-                        </h4>
-                        <button className="mt-3 flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">
-                          View Tour <ExternalLink className="w-3 h-3" />
+
+                        {/* Identity */}
+                        <div className="flex-1 text-center md:text-left pt-4">
+                            <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-2">
+                                {contact.name}
+                            </h1>
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-6">
+                                <span className="px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold uppercase tracking-wider">
+                                    {contact.designation}
+                                </span>
+                                <span className="text-gray-500 font-semibold">
+                                    {contact.organization}
+                                </span>
+                            </div>
+
+                            {/* Actions Row */}
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                                <button onClick={() => window.open(`tel:${contact.mobile}`)} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95">
+                                    <Phone size={18} />
+                                    Call
+                                </button>
+                                <button onClick={() => window.open(`https://wa.me/${contact.mobile.replace(/\D/g, '')}`)} className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-2xl font-bold shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all hover:scale-105 active:scale-95">
+                                    <MessageCircle size={18} />
+                                    WhatsApp
+                                </button>
+                                <button onClick={() => contact.email && window.open(`mailto:${contact.email}`)} className="p-3 bg-gray-100 text-gray-600 rounded-2xl hover:bg-gray-200 transition-all">
+                                    <Mail size={20} />
+                                </button>
+                                <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-50 transition-all">
+                                    <Download size={18} />
+                                    Export vCard
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Details */}
+                <div className="lg:col-span-2 space-y-8">
+                    <section className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm">
+                        <button
+                            onClick={() => toggleSection('info')}
+                            className="w-full flex items-center justify-between lg:cursor-default"
+                        >
+                            <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                                Contact Information
+                            </h3>
+                            <div className="lg:hidden text-gray-400">
+                                <ChevronRight size={20} className={`transition-transform duration-300 ${openSections.info ? 'rotate-90' : ''}`} />
+                            </div>
                         </button>
-                      </div>
-                    ))}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="greetings"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-4"
-                  >
-                    {MOCK_GREETINGS.map(greeting => (
-                      <div key={greeting.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{greeting.event}</span>
-                          <span className="text-[10px] font-bold text-slate-400">{greeting.date}</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                            {greeting.channel === 'WhatsApp' && <MessageCircle className="w-3 h-3" />}
-                            {greeting.channel === 'SMS' && <Phone className="w-3 h-3" />}
-                            {greeting.channel === 'Email' && <Mail className="w-3 h-3" />}
-                            {greeting.channel}
-                          </div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{greeting.status}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-              onClick={() => setShowDeleteConfirm(false)}
-            />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden relative z-10"
-            >
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <AlertCircle className="w-8 h-8" />
+                        <AnimatePresence initial={false}>
+                            {(openSections.info || window.innerWidth >= 1024) && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden mt-6"
+                                >
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <InfoItem icon={Phone} label="Primary Mobile" value={contact.mobile} />
+                                        <InfoItem icon={Phone} label="Alternate Mobile" value="" />
+                                        <InfoItem icon={Mail} label="Email Address" value={contact.email} />
+                                        <InfoItem icon={MessageCircle} label="WhatsApp" value={contact.mobile} />
+                                        <InfoItem icon={MapPin} label="Location" value={`${contact.location.village}, ${contact.location.taluk}, ${contact.location.zilla}`} fullWidth />
+                                        <InfoItem icon={FileText} label="Address" value="123 Revenue Colony, Main Road, Mysuru" fullWidth />
+                                        <InfoItem icon={Calendar} label="Date of Birth" value={contact.birthday} />
+                                        <InfoItem icon={Calendar} label="Anniversary" value={contact.anniversary} />
+                                        <InfoItem icon={Tag} label="Category" value={contact.category} />
+                                        <InfoItem icon={Star} label="VIP Status" value={contact.isVip ? "Active" : "Regular"} />
+                                        <InfoItem icon={User} label="Created By" value="Admin Staff" />
+                                        <InfoItem icon={Clock} label="Created Date" value={new Date(contact.addedAt).toLocaleDateString()} />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </section>
+
+                    <section className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm">
+                        <button
+                            onClick={() => toggleSection('notes')}
+                            className="w-full flex items-center justify-between lg:cursor-default"
+                        >
+                            <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                                Internal Notes & Tags
+                            </h3>
+                            <div className="lg:hidden text-gray-400">
+                                <ChevronRight size={20} className={`transition-transform duration-300 ${openSections.notes ? 'rotate-90' : ''}`} />
+                            </div>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                            {(openSections.notes || window.innerWidth >= 1024) && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden mt-6"
+                                >
+                                    <div className="space-y-6">
+                                        <div className="flex flex-wrap gap-2">
+                                            {['Key Influencer', 'Frequent Visitor', 'Supporter'].map(tag => (
+                                                <span key={tag} className="px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-xl text-xs font-bold uppercase tracking-tight">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                            <button className="px-3 py-1.5 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-xs font-bold text-gray-400 hover:border-primary hover:text-primary transition-all">
+                                                + Add Tag
+                                            </button>
+                                        </div>
+                                        <div className="p-5 bg-yellow-50/50 rounded-2xl border border-yellow-100 text-sm text-gray-700 leading-relaxed italic">
+                                            "Highly influential in the local community. Prefers communication via WhatsApp for urgent matters."
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </section>
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Delete Contact?</h3>
-                <p className="text-slate-500 mt-2">
-                  Are you sure you want to delete <span className="font-black text-slate-900">{contact.name}</span>? This action cannot be undone.
-                </p>
-                <div className="mt-8 flex gap-3">
-                  <Button
-                    variant="outline"
-                    fullWidth
-                    className="rounded-2xl py-4"
-                    onClick={() => setShowDeleteConfirm(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    fullWidth
-                    className="rounded-2xl py-4 bg-red-600 hover:bg-red-700 text-white border-red-600"
-                    onClick={() => {
-                      console.log('Deleting:', contact.id);
-                      navigate('/staff/contacts');
-                    }}
-                  >
-                    Delete Contact
-                  </Button>
+
+                {/* Right Column: History & Actions */}
+                <div className="space-y-8">
+                    <section className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between mb-6">
+                            <button
+                                onClick={() => toggleSection('engagement')}
+                                className="flex items-center gap-2 lg:cursor-default"
+                            >
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">Engagement</h3>
+                                <div className="lg:hidden text-gray-400">
+                                    <ChevronRight size={18} className={`transition-transform duration-300 ${openSections.engagement ? 'rotate-90' : ''}`} />
+                                </div>
+                            </button>
+                            <div className="flex bg-gray-100 p-1 rounded-xl">
+                                {(['tours', 'greetings', 'history'] as const).map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeTab === tab ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                                            }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <AnimatePresence initial={false}>
+                            {(openSections.engagement || window.innerWidth >= 1024) && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="min-h-[250px]">
+                                        <AnimatePresence mode="wait">
+                                            {activeTab === 'tours' && (
+                                                <motion.div
+                                                    key="tours"
+                                                    initial={{ opacity: 0, scale: 0.98 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.98 }}
+                                                    className="space-y-4"
+                                                >
+                                                    {[
+                                                        { name: 'Rural Development Tour', date: 'Jan 15, 2026' },
+                                                        { name: 'Inauguration Ceremony', date: 'Dec 10, 2025' }
+                                                    ].map((tour, i) => (
+                                                        <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-gray-100">
+                                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary">
+                                                                <MapPin size={18} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-900 tracking-tight">{tour.name}</p>
+                                                                <p className="text-[10px] text-gray-500 font-semibold">{tour.date}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <button className="w-full py-4 border-2 border-dashed border-gray-100 rounded-[1.5rem] flex items-center justify-center gap-2 text-xs font-bold text-gray-400 hover:border-primary hover:text-primary transition-all">
+                                                        <Plus size={16} /> Add to Tour
+                                                    </button>
+                                                </motion.div>
+                                            )}
+
+                                            {activeTab === 'greetings' && (
+                                                <motion.div
+                                                    key="greetings"
+                                                    initial={{ opacity: 0, x: 10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -10 }}
+                                                    className="space-y-4"
+                                                >
+                                                    {[
+                                                        { type: 'Birthday Wish', channel: 'WhatsApp', date: 'May 15, 2025' },
+                                                        { type: 'Diwali Greeting', channel: 'SMS', date: 'Nov 01, 2025' }
+                                                    ].map((g, i) => (
+                                                        <div key={i} className="flex items-center gap-3 p-3 bg-pink-50/50 rounded-2xl border border-pink-100/50">
+                                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-pink-500">
+                                                                <Star size={18} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-900 tracking-tight">{g.type}</p>
+                                                                <p className="text-[10px] text-gray-500 font-semibold">{g.date} via {g.channel}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <button className="w-full py-4 bg-primary text-white rounded-[1.5rem] flex items-center justify-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all">
+                                                        <Send size={16} /> Send Greeting
+                                                    </button>
+                                                </motion.div>
+                                            )}
+
+                                            {activeTab === 'history' && (
+                                                <motion.div
+                                                    key="history"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="space-y-4"
+                                                >
+                                                    <div className="flex items-start gap-3 relative pb-6 border-l-2 border-gray-100 ml-3 pl-6">
+                                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-4 border-white"></div>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-gray-900">Modified by Office Staff</p>
+                                                            <p className="text-[10px] text-gray-400 mb-2">2 days ago</p>
+                                                            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">Updated location details and added 'Supporter' tag.</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-start gap-3 relative ml-3 pl-6">
+                                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-200 border-4 border-white"></div>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-gray-900">Contact Created</p>
+                                                            <p className="text-[10px] text-gray-400">Oct 01, 2025</p>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </section>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+            </div>
+        </div>
+    );
 };
+
+export default ContactDetailPage;

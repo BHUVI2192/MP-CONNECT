@@ -1,214 +1,403 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    Search,
+    Plus,
+    Upload,
+    Filter,
+    ChevronDown,
+    Star,
+    Calendar,
+    X,
+    ChevronRight
+} from 'lucide-react';
+import { Contact, ContactCategory } from '../../types';
+import ContactCard from '../../components/ContactCard';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, Filter, Search, Users, Grid, List as ListIcon, X, AlertCircle } from 'lucide-react';
-import { Contact } from '../../types';
-import { MOCK_CONTACTS } from '../../mockData';
-import { Button } from '../../components/UI/Button';
-import { ContactCard } from '../../components/UI/ContactCard';
-import { ContactFilters } from '../../components/UI/ContactFilters';
-import { GlobalSearch } from '../../components/UI/GlobalSearch';
 
-// Mock Data
+// Dummy Data
+const DUMMY_CONTACTS: Contact[] = [
+    {
+        id: '1',
+        name: 'Rajesh Kumar',
+        designation: 'Collector',
+        organization: 'District Administration',
+        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Mysuru', gp: 'City', village: 'Nazarbad' },
+        mobile: '+91 98765 43210',
+        email: 'rajesh.kumar@example.com',
+        category: 'Officer',
+        isVip: true,
+        addedAt: '2025-10-01T10:00:00Z',
+        birthday: '05-15'
+    },
+    {
+        id: '2',
+        name: 'Priya Sharma',
+        designation: 'Tehsildar',
+        organization: 'Revenue Department',
+        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Hunsur', gp: 'Hunsur Town', village: 'Main' },
+        mobile: '+91 98765 43211',
+        category: 'Officer',
+        isVip: false,
+        addedAt: '2025-11-20T14:30:00Z',
+        anniversary: '12-10'
+    }
+];
+
 export const ContactBookPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<Contact | null>(null);
-  const [filters, setFilters] = useState({
-    location: { state: '', zilla: '', taluk: '', gp: '', village: '' },
-    categories: [] as string[],
-    vipOnly: false,
-    birthdaysThisMonth: false,
-    anniversariesThisMonth: false,
-    dateFrom: '',
-    dateTo: '',
-  });
+    const navigate = useNavigate();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const filteredContacts = useMemo(() => {
-    return contacts.filter((c) => {
-      if (filters.vipOnly && !c.isVip) return false;
-      if (filters.categories.length > 0 && !filters.categories.includes(c.category)) return false;
-      if (filters.location.zilla && c.zilla !== filters.location.zilla) return false;
-      if (filters.location.taluk && c.taluk !== filters.location.taluk) return false;
-      // Add other filter logic as needed
-      return true;
+    // Filters State
+    const [filters, setFilters] = useState({
+        state: '',
+        zilla: '',
+        taluk: '',
+        gp: '',
+        village: '',
+        categories: [] as ContactCategory[],
+        vipOnly: false,
+        birthdaysThisMonth: false,
+        anniversariesThisMonth: false,
+        dateFrom: '',
+        dateTo: ''
     });
-  }, [contacts, filters]);
 
-  const handleDelete = (contact: Contact) => {
-    setContacts(contacts.filter((c) => c.id !== contact.id));
-    setShowDeleteConfirm(null);
-  };
+    const filteredContacts = useMemo(() => {
+        return DUMMY_CONTACTS.filter(contact => {
+            if (filters.state && contact.location.state !== filters.state) return false;
+            if (filters.zilla && contact.location.zilla !== filters.zilla) return false;
+            if (filters.taluk && contact.location.taluk !== filters.taluk) return false;
+            if (filters.gp && contact.location.gp !== filters.gp) return false;
+            if (filters.village && contact.location.village !== filters.village) return false;
+            if (filters.categories.length > 0 && !filters.categories.includes(contact.category)) return false;
+            if (filters.vipOnly && !contact.isVip) return false;
 
-  return (
-    <div className="flex h-[calc(100vh-80px)] overflow-hidden -m-8">
-      {/* Sidebar */}
-      <AnimatePresence mode="wait">
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            className="hidden md:block h-full"
-          >
-            <ContactFilters filters={filters} setFilters={setFilters} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            const searchMatch = !searchQuery ||
+                contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                contact.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                contact.mobile.includes(searchQuery);
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-50">
-        {/* Sticky Top Bar */}
-        <header className="sticky top-0 z-50 bg-white border-b border-slate-200 p-6 flex flex-col gap-6 shadow-sm">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
-                <Users className="w-8 h-8 text-indigo-600" />
-                Contact Book
-              </h2>
-              <p className="text-slate-500 font-medium text-sm">Manage and organize your constituency network.</p>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <Button variant="outline" className="rounded-2xl flex-1 md:flex-none" onClick={() => navigate('/staff/contacts/bulk')}>
-                <Upload className="w-4 h-4 mr-2" /> Bulk Upload
-              </Button>
-              <Button className="rounded-2xl flex-1 md:flex-none" onClick={() => navigate('/staff/contacts/new')}>
-                <Plus className="w-4 h-4 mr-2" /> Add New Contact
-              </Button>
-            </div>
-          </div>
+            return searchMatch;
+        });
+    }, [filters, searchQuery]);
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-4 rounded-2xl border-2 transition-all ${
-                isSidebarOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-400'
-              }`}
+    const searchResults = useMemo(() => {
+        if (searchQuery.length < 2) return [];
+        return DUMMY_CONTACTS.filter(c =>
+            c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.mobile.includes(searchQuery)
+        ).slice(0, 10);
+    }, [searchQuery]);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (searchResults.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            setSelectedIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : prev));
+        } else if (e.key === 'ArrowUp') {
+            setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            setSearchQuery(searchResults[selectedIndex].name);
+            setShowSearchDropdown(false);
+        } else if (e.key === 'Escape') {
+            setShowSearchDropdown(false);
+        }
+    };
+
+    const highlightMatch = (text: string, query: string) => {
+        if (!query) return text;
+        const parts = text.split(new RegExp(`(${query})`, 'gi'));
+        return (
+            <span>
+                {parts.map((part, i) =>
+                    part.toLowerCase() === query.toLowerCase()
+                        ? <span key={i} className="bg-yellow-200 text-gray-900">{part}</span>
+                        : part
+                )}
+            </span>
+        );
+    };
+
+    const handleDelete = (id: string) => {
+        if (window.confirm('Are you sure you want to delete this contact?')) {
+            console.log('Deleting contact:', id);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex">
+            {/* Sidebar */}
+            <aside
+                className={`${isSidebarOpen ? 'w-72' : 'w-0'
+                    } transition-all duration-300 bg-white border-r border-gray-200 overflow-hidden sticky top-0 h-screen hidden md:block`}
             >
-              <Filter className="w-5 h-5" />
-            </button>
-            <GlobalSearch
-              contacts={contacts}
-              onSelect={(c) => {
-                navigate(`/staff/contacts/${c.id}`);
-              }}
-              onAddNew={() => navigate('/staff/contacts/new')}
-            />
-          </div>
-        </header>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-7xl mx-auto space-y-8">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-slate-400 uppercase tracking-widest">
-                Showing <span className="text-slate-900">{filteredContacts.length}</span> of{' '}
-                <span className="text-slate-900">{contacts.length}</span> contacts
-              </p>
-              <div className="flex bg-slate-200 p-1 rounded-xl">
-                <button className="p-2 bg-white rounded-lg shadow-sm text-indigo-600">
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button className="p-2 text-slate-500 hover:text-slate-700">
-                  <ListIcon className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {filteredContacts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredContacts.map((contact) => (
-                  <motion.div
-                    key={contact.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div onClick={() => navigate(`/staff/contacts/${contact.id}`)} className="cursor-pointer">
-                      <ContactCard
-                        contact={contact}
-                        onEdit={() => navigate(`/staff/contacts/edit/${contact.id}`)}
-                        onDelete={() => setShowDeleteConfirm(contact)}
-                      />
+                <div className="p-6 w-72">
+                    <div className="flex items-center justify-between mb-8">
+                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Filter size={18} className="text-primary" />
+                            Filters
+                        </h2>
+                        <button
+                            onClick={() => setFilters({
+                                state: '', zilla: '', taluk: '', gp: '', village: '',
+                                categories: [], vipOnly: false, birthdaysThisMonth: false, anniversariesThisMonth: false,
+                                dateFrom: '', dateTo: ''
+                            })}
+                            className="text-xs text-primary font-medium hover:underline"
+                        >
+                            Reset All
+                        </button>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-24 h-24 bg-slate-100 text-slate-300 rounded-[2.5rem] flex items-center justify-center mb-6">
-                  <Users className="w-12 h-12" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">No contacts found</h3>
-                <p className="text-slate-500 mt-2 max-w-xs mx-auto">
-                  Try adjusting your filters or search query to find what you're looking for.
-                </p>
-                <Button variant="outline" className="mt-8 rounded-2xl" onClick={() => setFilters({
-                  location: { state: '', zilla: '', taluk: '', gp: '', village: '' },
-                  categories: [],
-                  vipOnly: false,
-                  birthdaysThisMonth: false,
-                  anniversariesThisMonth: false,
-                  dateFrom: '',
-                  dateTo: '',
-                })}>
-                  Clear All Filters
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-              onClick={() => setShowDeleteConfirm(null)}
-            />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden relative z-10"
-            >
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <AlertCircle className="w-8 h-8" />
+                    <div className="space-y-6">
+                        {/* Location Section */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Location</label>
+                            <div className="space-y-3">
+                                <select
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    value={filters.state}
+                                    onChange={(e) => setFilters(f => ({ ...f, state: e.target.value }))}
+                                >
+                                    <option value="">Select State</option>
+                                    <option value="Karnataka">Karnataka</option>
+                                </select>
+                                <select
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    disabled={!filters.state}
+                                    value={filters.zilla}
+                                    onChange={(e) => setFilters(f => ({ ...f, zilla: e.target.value }))}
+                                >
+                                    <option value="">Select Zilla</option>
+                                    <option value="Mysuru">Mysuru</option>
+                                </select>
+                                <select
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    disabled={!filters.zilla}
+                                    value={filters.taluk}
+                                    onChange={(e) => setFilters(f => ({ ...f, taluk: e.target.value }))}
+                                >
+                                    <option value="">Select Taluk</option>
+                                    <option value="Mysuru">Mysuru</option>
+                                    <option value="Hunsur">Hunsur</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Categories */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Category</label>
+                            <div className="space-y-2">
+                                {['Officer', 'VIP', 'Political Leader', 'Media'].map(cat => (
+                                    <label key={cat} className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                                            checked={filters.categories.includes(cat as ContactCategory)}
+                                            onChange={(e) => {
+                                                const newCats = e.target.checked
+                                                    ? [...filters.categories, cat as ContactCategory]
+                                                    : filters.categories.filter(c => c !== cat);
+                                                setFilters(f => ({ ...f, categories: newCats }));
+                                            }}
+                                        />
+                                        <span className="text-sm text-gray-600 group-hover:text-gray-900">{cat}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Special Filters */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Special</label>
+                            <div className="space-y-3">
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <span className="text-sm text-gray-600">VIP Only</span>
+                                    <input
+                                        type="checkbox"
+                                        className="toggle toggle-primary"
+                                        checked={filters.vipOnly}
+                                        onChange={(e) => setFilters(f => ({ ...f, vipOnly: e.target.checked }))}
+                                    />
+                                </label>
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <span className="text-sm text-gray-600">Birthdays (Month)</span>
+                                    <input
+                                        type="checkbox"
+                                        className="toggle toggle-primary"
+                                        checked={filters.birthdaysThisMonth}
+                                        onChange={(e) => setFilters(f => ({ ...f, birthdaysThisMonth: e.target.checked }))}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Date Range */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Added Between</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <input
+                                    type="date"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none"
+                                    value={filters.dateFrom}
+                                    onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                                />
+                                <input
+                                    type="date"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none"
+                                    value={filters.dateTo}
+                                    onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Delete Contact?</h3>
-                <p className="text-slate-500 mt-2">
-                  Are you sure you want to delete <span className="font-black text-slate-900">{showDeleteConfirm.name}</span>? This action cannot be undone.
-                </p>
-                <div className="mt-8 flex gap-3">
-                  <Button
-                    variant="outline"
-                    fullWidth
-                    className="rounded-2xl py-4"
-                    onClick={() => setShowDeleteConfirm(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    fullWidth
-                    className="rounded-2xl py-4 bg-red-600 hover:bg-red-700 text-white border-red-600"
-                    onClick={() => handleDelete(showDeleteConfirm)}
-                  >
-                    Delete Contact
-                  </Button>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto">
+                {/* Sticky Header */}
+                <header className="sticky top-0 bg-white border-b border-gray-200 z-30 px-6 py-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                            <button
+                                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+                            >
+                                <Filter size={20} />
+                            </button>
+                            <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">Contact Book</h1>
+
+                            {/* Search Bar */}
+                            <div className="relative flex-1 max-w-2xl ml-4">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={18} className="text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, designation, or mobile..."
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setShowSearchDropdown(true);
+                                    }}
+                                    onFocus={() => setShowSearchDropdown(true)}
+                                    onKeyDown={handleKeyDown}
+                                />
+
+                                {/* Search Dropdown */}
+                                {showSearchDropdown && searchQuery.length >= 2 && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 max-h-80 overflow-y-auto z-50">
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map((result, idx) => (
+                                                <button
+                                                    key={result.id}
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${selectedIndex === idx ? 'bg-gray-50' : ''
+                                                        }`}
+                                                    onClick={() => {
+                                                        navigate(`/staff/contacts/${result.id}`);
+                                                        setShowSearchDropdown(false);
+                                                    }}
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-xs">
+                                                        {result.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {highlightMatch(result.name, searchQuery)}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {highlightMatch(result.designation, searchQuery)} • {highlightMatch(result.mobile, searchQuery)}
+                                                        </p>
+                                                    </div>
+                                                    <ChevronRight size={16} className="ml-auto text-gray-300" />
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-6 text-center">
+                                                <p className="text-sm text-gray-500 mb-2">No results found for "{searchQuery}"</p>
+                                                <button className="text-sm text-primary font-semibold hover:underline flex items-center gap-1 mx-auto">
+                                                    <Plus size={16} /> Add New Contact
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/staff/contacts/new')}
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                            >
+                                <Plus size={20} />
+                                <span className="whitespace-nowrap">Add New Contact</span>
+                            </button>
+                            <button
+                                onClick={() => navigate('/staff/contacts/bulk-upload')}
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                            >
+                                <Upload size={18} />
+                                <span className="whitespace-nowrap">Bulk Upload</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Results Info */}
+                <div className="px-6 py-4 flex items-center justify-between">
+                    <p className="text-sm text-gray-500 font-medium">
+                        Showing <span className="text-gray-900">{filteredContacts.length}</span> of <span className="text-gray-900">{DUMMY_CONTACTS.length}</span> contacts
+                    </p>
+                    <div className="flex gap-2">
+                        {/* Active filter badges could go here */}
+                    </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+
+                {/* Contact Grid */}
+                <div className="px-6 pb-8">
+                    {filteredContacts.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {filteredContacts.map(contact => (
+                                <ContactCard
+                                    key={contact.id}
+                                    contact={contact}
+                                    onEdit={(c) => navigate(`/staff/contacts/edit/${c.id}`)}
+                                    onDelete={handleDelete}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center mt-8">
+                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Search size={32} className="text-gray-300" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">No contacts match your filters</h3>
+                            <p className="text-gray-500 mb-6 max-w-xs mx-auto text-sm">
+                                Try adjusting your search query or filters to find what you're looking for.
+                            </p>
+                            <button
+                                onClick={() => setFilters({
+                                    state: '', zilla: '', taluk: '', gp: '', village: '',
+                                    categories: [], vipOnly: false, birthdaysThisMonth: false, anniversariesThisMonth: false,
+                                    dateFrom: '', dateTo: ''
+                                })}
+                                className="text-primary font-semibold hover:underline"
+                            >
+                                Clear all filters
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </main>
+        </div >
+    );
 };
+
+

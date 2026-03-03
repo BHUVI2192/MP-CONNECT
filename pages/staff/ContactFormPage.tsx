@@ -1,609 +1,453 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Check, 
-  Camera, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Tag, 
-  Calendar, 
-  Star, 
-  X,
-  Loader2,
-  Upload,
-  MessageCircle
+import React, { useState, useEffect } from 'react';
+import {
+    Camera,
+    ChevronLeft,
+    ChevronRight,
+    Save,
+    X,
+    Check,
+    MapPin,
+    Phone,
+    User,
+    FileText,
+    Plus,
+    Star
 } from 'lucide-react';
-import { Button } from '../../components/UI/Button';
-import { Contact } from '../../types';
-
-// --- Types & Constants ---
-
-interface ContactFormData extends Partial<Contact> {
-  whatsappSameAsPrimary?: boolean;
-}
+import { useNavigate, useParams } from 'react-router-dom';
+import { Contact, ContactCategory, ContactLocation } from '../../types';
 
 const STEPS = [
-  { id: 1, label: 'Basic Info' },
-  { id: 2, label: 'Contact Details' },
-  { id: 3, label: 'Location' },
-  { id: 4, label: 'Additional Details' },
+    { id: 1, label: 'Basic Info', icon: User },
+    { id: 2, label: 'Contact Details', icon: Phone },
+    { id: 3, label: 'Location', icon: MapPin },
+    { id: 4, label: 'Additional Details', icon: FileText },
 ];
 
-const CATEGORIES = ['Government', 'Political', 'Community', 'Business', 'Other'];
-
-// --- Mock Data for Cascading Dropdowns ---
-const LOCATIONS = {
-  states: ['Karnataka'],
-  zillas: {
-    'Karnataka': ['Mysuru', 'Bengaluru Urban', 'Mandya', 'Hassan']
-  },
-  taluks: {
-    'Mysuru': ['Mysuru', 'Hunsur', 'Nanjangud', 'T.Narasipura'],
-    'Mandya': ['Mandya', 'Maddur', 'Malavalli']
-  },
-  gps: {
-    'Hunsur': ['Rampur', 'Bilikere', 'Dharmapura'],
-    'Mysuru': ['City', 'Chamundi Hill', 'Kadakola']
-  },
-  villages: {
-    'Rampur': ['Rampur Village', 'Hosahalli', 'Koppa'],
-    'City': ['Mysuru City']
-  }
-};
-
 export const ContactFormPage: React.FC = () => {
-  const { id } = useParams<{ id?: string }>();
-  const navigate = useNavigate();
-  const isEdit = !!id;
+    const navigate = useNavigate();
+    const { id } = useParams();
+    const isEdit = !!id;
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<ContactFormData>({
-    name: '',
-    designation: '',
-    organization: '',
-    category: '',
-    mobile: '',
-    altMobile: '',
-    email: '',
-    whatsapp: '',
-    whatsappSameAsPrimary: true,
-    state: 'Karnataka',
-    zilla: '',
-    taluk: '',
-    gp: '',
-    village: '',
-    fullAddress: '',
-    dob: '',
-    anniversary: '',
-    tags: [],
-    notes: '',
-    isVip: false,
-    photoUrl: ''
-  });
+    const [currentStep, setCurrentStep] = useState(1);
+    const [formData, setFormData] = useState<Partial<Contact>>({
+        name: '',
+        designation: '',
+        organization: '',
+        category: 'Government' as any,
+        mobile: '',
+        whatsapp: '',
+        email: '',
+        location: {
+            state: '',
+            zilla: '',
+            taluk: '',
+            gp: '',
+            village: ''
+        },
+        isVip: false,
+        addedAt: new Date().toISOString()
+    });
 
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [tagInput, setTagInput] = useState('');
-  const [isLoadingLocation, setIsLoadingLocation] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+    const [tags, setTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  // --- Step Validation ---
-  const validateStep = (step: number) => {
-    const newErrors: Record<string, string> = {};
-    if (step === 1) {
-      if (!formData.name) newErrors.name = 'Full Name is required';
-    }
-    if (step === 2) {
-      if (!formData.mobile) newErrors.mobile = 'Primary Mobile is required';
-      if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    const handleNext = () => {
+        if (currentStep < 4) setCurrentStep(currentStep + 1);
+    };
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
-    }
-  };
+    const handleBack = () => {
+        if (currentStep > 1) setCurrentStep(currentStep - 1);
+    };
 
-  const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-  };
+    const handleSave = () => {
+        console.log('Saving contact:', formData, tags);
+        // Success: toast + redirect
+        alert('Contact saved successfully!');
+        navigate('/staff/contacts');
+    };
 
-  const handleStepClick = (stepId: number) => {
-    if (stepId < currentStep) {
-      setCurrentStep(stepId);
-    } else if (stepId > currentStep) {
-      // Can only skip forward if current and intermediate steps are valid
-      let canSkip = true;
-      for (let i = currentStep; i < stepId; i++) {
-        if (!validateStep(i)) {
-          canSkip = false;
-          break;
-        }
-      }
-      if (canSkip) setCurrentStep(stepId);
-    }
-  };
+    const renderStepIndicator = () => (
+        <div className="flex items-center justify-between mb-12 relative">
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -translate-y-1/2 -z-10"></div>
+            {STEPS.map((step, idx) => {
+                const Icon = step.icon;
+                const isActive = currentStep === step.id;
+                const isCompleted = currentStep > step.id;
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-        setFormData({ ...formData, photoUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleLocationChange = (level: string, value: string) => {
-    setIsLoadingLocation(level);
-    // Simulate API delay
-    setTimeout(() => {
-      const updates: any = { [level]: value };
-      // Reset children
-      if (level === 'state') { updates.zilla = ''; updates.taluk = ''; updates.gp = ''; updates.village = ''; }
-      if (level === 'zilla') { updates.taluk = ''; updates.gp = ''; updates.village = ''; }
-      if (level === 'taluk') { updates.gp = ''; updates.village = ''; }
-      if (level === 'gp') { updates.village = ''; }
-      
-      setFormData(prev => ({ ...prev, ...updates }));
-      setIsLoadingLocation(null);
-    }, 400);
-  };
-
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault();
-      if (!formData.tags?.includes(tagInput.trim())) {
-        setFormData({ ...formData, tags: [...(formData.tags || []), tagInput.trim()] });
-      }
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setFormData({ ...formData, tags: formData.tags?.filter(t => t !== tagToRemove) });
-  };
-
-  const handleSave = () => {
-    if (validateStep(4)) {
-      console.log('Saving Contact:', formData);
-      // Success logic
-      navigate('/staff/contacts');
-    }
-  };
-
-  // --- Render Helpers ---
-
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-between mb-12 px-4">
-      {STEPS.map((step, idx) => (
-        <React.Fragment key={step.id}>
-          <div 
-            className="flex flex-col items-center gap-2 cursor-pointer group"
-            onClick={() => handleStepClick(step.id)}
-          >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-all border-2 ${
-              currentStep === step.id 
-                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                : currentStep > step.id 
-                  ? 'bg-emerald-500 border-emerald-500 text-white' 
-                  : 'bg-white border-slate-200 text-slate-400 group-hover:border-indigo-300'
-            }`}>
-              {currentStep > step.id ? <Check className="w-5 h-5" /> : step.id}
-            </div>
-            <span className={`text-[10px] font-black uppercase tracking-widest ${
-              currentStep === step.id ? 'text-indigo-600' : 'text-slate-400'
-            }`}>
-              {step.label}
-            </span>
-          </div>
-          {idx < STEPS.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-4 transition-colors ${
-              currentStep > step.id ? 'bg-emerald-500' : 'bg-slate-100'
-            }`} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="max-w-4xl mx-auto pb-20">
-      <header className="mb-12 flex items-center justify-between">
-        <div>
-          <button 
-            onClick={() => navigate('/staff/contacts')}
-            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-black text-xs uppercase tracking-widest mb-4 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back to Contacts
-          </button>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
-            {isEdit ? 'Edit Contact' : 'Add New Contact'}
-          </h1>
-          <p className="text-slate-500 font-medium">Fill in the details to {isEdit ? 'update' : 'create'} a constituency contact.</p>
-        </div>
-      </header>
-
-      {renderStepIndicator()}
-
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-8 md:p-12">
-          <AnimatePresence mode="wait">
-            {currentStep === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="flex flex-col items-center mb-8">
-                  <div className="relative group">
-                    <div className="w-32 h-32 rounded-full bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
-                      {photoPreview ? (
-                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-12 h-12 text-slate-300" />
-                      )}
-                    </div>
-                    <label className="absolute bottom-0 right-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:bg-indigo-700 transition-colors border-4 border-white">
-                      <Camera className="w-5 h-5" />
-                      <input type="file" className="hidden" onChange={handlePhotoChange} accept="image/*" />
-                    </label>
-                  </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-4">Profile Photo</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>
-                    <input 
-                      type="text" 
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Dr. Rajesh Kumar"
-                      className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all ${
-                        errors.name ? 'border-red-500' : 'border-slate-100'
-                      }`}
-                    />
-                    {errors.name && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.name}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Designation</label>
-                    <input 
-                      type="text" 
-                      value={formData.designation}
-                      onChange={e => setFormData({ ...formData, designation: e.target.value })}
-                      placeholder="e.g. District Magistrate"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Organization</label>
-                    <input 
-                      type="text" 
-                      value={formData.organization}
-                      onChange={e => setFormData({ ...formData, organization: e.target.value })}
-                      placeholder="e.g. District Administration"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-                    <div className="relative">
-                      <select 
-                        value={formData.category}
-                        onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all appearance-none"
-                      >
-                        <option value="">Select Category</option>
-                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </select>
-                      <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <ChevronRight className="w-4 h-4 rotate-90" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Primary Mobile *</label>
-                    <div className="relative">
-                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">+91</div>
-                      <input 
-                        type="tel" 
-                        value={formData.mobile}
-                        onChange={e => setFormData({ ...formData, mobile: e.target.value })}
-                        placeholder="98765 43210"
-                        className={`w-full pl-16 pr-6 py-4 bg-slate-50 border rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all ${
-                          errors.mobile ? 'border-red-500' : 'border-slate-100'
-                        }`}
-                      />
-                    </div>
-                    {errors.mobile && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.mobile}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alternate Mobile</label>
-                    <div className="relative">
-                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">+91</div>
-                      <input 
-                        type="tel" 
-                        value={formData.altMobile}
-                        onChange={e => setFormData({ ...formData, altMobile: e.target.value })}
-                        placeholder="98765 43211"
-                        className="w-full pl-16 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-                    <div className="relative">
-                      <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                      <input 
-                        type="email" 
-                        value={formData.email}
-                        onChange={e => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="example@gov.in"
-                        className={`w-full pl-14 pr-6 py-4 bg-slate-50 border rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all ${
-                          errors.email ? 'border-red-500' : 'border-slate-100'
-                        }`}
-                      />
-                    </div>
-                    {errors.email && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.email}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp Number</label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={formData.whatsappSameAsPrimary}
-                          onChange={e => {
-                            const checked = e.target.checked;
-                            setFormData({ 
-                              ...formData, 
-                              whatsappSameAsPrimary: checked,
-                              whatsapp: checked ? formData.mobile : formData.whatsapp
-                            });
-                          }}
-                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-[10px] font-bold text-slate-500">Same as primary</span>
-                      </label>
-                    </div>
-                    <div className="relative">
-                      <MessageCircle className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                      <input 
-                        type="tel" 
-                        value={formData.whatsappSameAsPrimary ? formData.mobile : formData.whatsapp}
-                        onChange={e => !formData.whatsappSameAsPrimary && setFormData({ ...formData, whatsapp: e.target.value })}
-                        disabled={formData.whatsappSameAsPrimary}
-                        placeholder="98765 43210"
-                        className={`w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all ${
-                          formData.whatsappSameAsPrimary ? 'opacity-50' : ''
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Cascading Dropdowns */}
-                  {[
-                    { label: 'State', key: 'state', options: LOCATIONS.states, disabled: false },
-                    { label: 'Zilla', key: 'zilla', options: LOCATIONS.zillas[formData.state as keyof typeof LOCATIONS.zillas] || [], disabled: !formData.state },
-                    { label: 'Taluk', key: 'taluk', options: LOCATIONS.taluks[formData.zilla as keyof typeof LOCATIONS.taluks] || [], disabled: !formData.zilla },
-                    { label: 'Gram Panchayat', key: 'gp', options: LOCATIONS.gps[formData.taluk as keyof typeof LOCATIONS.gps] || [], disabled: !formData.taluk },
-                    { label: 'Village', key: 'village', options: LOCATIONS.villages[formData.gp as keyof typeof LOCATIONS.villages] || [], disabled: !formData.gp },
-                  ].map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                      <div className="relative">
-                        <select 
-                          value={formData[field.key as keyof ContactFormData] as string}
-                          onChange={e => handleLocationChange(field.key, e.target.value)}
-                          disabled={field.disabled || isLoadingLocation === field.key}
-                          className={`w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all appearance-none ${
-                            field.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          <option value="">Select {field.label}</option>
-                          {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          {isLoadingLocation === field.key ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 rotate-90" />
-                          )}
+                return (
+                    <button
+                        key={step.id}
+                        onClick={() => currentStep > step.id && setCurrentStep(step.id)}
+                        disabled={step.id > currentStep}
+                        className="flex flex-col items-center gap-2 group relative z-10"
+                    >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isActive ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/20' :
+                            isCompleted ? 'bg-green-500 text-white' : 'bg-white border-2 border-gray-200 text-gray-400'
+                            }`}>
+                            {isCompleted ? <Check size={20} /> : <Icon size={20} />}
                         </div>
-                      </div>
-                      {field.options.length === 0 && !field.disabled && (
-                        <p className="text-[8px] text-slate-400 font-bold ml-1 italic">No options available for this selection</p>
-                      )}
+                        <span className={`text-xs font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-gray-400'
+                            }`}>
+                            {step.label}
+                        </span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    const renderStep1 = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col items-center mb-8">
+                <div className="relative group cursor-pointer">
+                    <div className="w-32 h-32 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-primary">
+                        {photoPreview ? (
+                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                            <>
+                                <Camera size={32} className="text-gray-300 mb-2 group-hover:text-primary transition-colors" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Upload Photo</span>
+                            </>
+                        )}
                     </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Address</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-6 top-6 text-slate-400 w-4 h-4" />
-                    <textarea 
-                      value={formData.fullAddress}
-                      onChange={e => setFormData({ ...formData, fullAddress: e.target.value })}
-                      placeholder="e.g. #12, Ashoka Road, New Delhi"
-                      rows={3}
-                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
+                    <input
+                        type="file"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setPhotoPreview(URL.createObjectURL(file));
+                        }}
                     />
-                  </div>
                 </div>
-              </motion.div>
-            )}
+            </div>
 
-            {currentStep === 4 && (
-              <motion.div
-                key="step4"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
+            <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Full Name *</label>
+                    <input
+                        type="text"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        placeholder="Enter contact name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Date of Birth</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                      <input 
-                        type="date" 
-                        value={formData.dob}
-                        onChange={e => setFormData({ ...formData, dob: e.target.value })}
-                        className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Designation</label>
+                        <input
+                            type="text"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="e.g. Collector, Tehsildar"
+                            value={formData.designation}
+                            onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                        />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Anniversary Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                      <input 
-                        type="date" 
-                        value={formData.anniversary}
-                        onChange={e => setFormData({ ...formData, anniversary: e.target.value })}
-                        className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Organization</label>
+                        <input
+                            type="text"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="e.g. Revenue Department"
+                            value={formData.organization}
+                            onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                        />
                     </div>
-                  </div>
                 </div>
+                <div className="space-y-3">
+                    <label className="text-sm font-bold text-gray-700 block">Category</label>
+                    <div className="flex flex-wrap gap-3">
+                        {['Government', 'Political', 'Community', 'Business', 'Other'].map(cat => (
+                            <label key={cat} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${formData.category === cat ? 'bg-primary/5 border-primary text-primary' : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
+                                }`}>
+                                <input
+                                    type="radio"
+                                    className="hidden"
+                                    name="category"
+                                    value={cat}
+                                    checked={formData.category === cat}
+                                    onChange={() => setFormData({ ...formData, category: cat as any })}
+                                />
+                                <span className="text-sm font-semibold">{cat}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
+    const renderStep2 = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tags (Press Enter to add)</label>
-                  <div className="relative">
-                    <Tag className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <input 
-                      type="text" 
-                      value={tagInput}
-                      onChange={e => setTagInput(e.target.value)}
-                      onKeyDown={handleAddTag}
-                      placeholder="e.g. Influencer, Donor, Volunteer"
-                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
+                    <label className="text-sm font-bold text-gray-700">Primary Mobile *</label>
+                    <div className="flex">
+                        <span className="px-4 py-3 bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl text-gray-500 text-sm font-semibold">+91</span>
+                        <input
+                            type="tel"
+                            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-r-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="9876543210"
+                            value={formData.mobile}
+                            onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                        />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Alternate Mobile</label>
+                    <input
+                        type="tel"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        placeholder="Optional secondary number"
                     />
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {formData.tags?.map(tag => (
-                      <span key={tag} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black flex items-center gap-2 border border-indigo-100">
-                        {tag}
-                        <button onClick={() => removeTag(tag)} className="hover:text-indigo-800">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
                 </div>
-
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700">Email Address</label>
+                <input
+                    type="email"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="contact@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+            </div>
+            <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="same-whatsapp"
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                        onChange={(e) => {
+                            if (e.target.checked) setFormData({ ...formData, whatsapp: formData.mobile });
+                        }}
+                    />
+                    <label htmlFor="same-whatsapp" className="text-sm text-gray-600">WhatsApp is same as primary mobile</label>
+                </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Internal Notes</label>
-                  <textarea 
-                    value={formData.notes}
-                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Add any additional context or background about this contact..."
-                    rows={4}
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
-                  />
+                    <label className="text-sm font-bold text-gray-700">WhatsApp Number</label>
+                    <input
+                        type="tel"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        placeholder="WhatsApp number"
+                        value={formData.whatsapp}
+                        onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    />
                 </div>
+            </div>
+        </div>
+    );
 
-                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
-                      formData.isVip ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-400'
-                    }`}>
-                      <Star className={`w-6 h-6 ${formData.isVip ? 'fill-current' : ''}`} />
+    const renderStep3 = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">State</label>
+                    <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                        value={formData.location?.state}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, state: e.target.value } })}
+                    >
+                        <option value="">Select State</option>
+                        <option value="Karnataka">Karnataka</option>
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Zilla</label>
+                    <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                        disabled={!formData.location?.state}
+                        value={formData.location?.zilla}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, zilla: e.target.value } })}
+                    >
+                        <option value="">Select Zilla</option>
+                        <option value="Mysuru">Mysuru</option>
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Taluk</label>
+                    <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                        disabled={!formData.location?.zilla}
+                        value={formData.location?.taluk}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, taluk: e.target.value } })}
+                    >
+                        <option value="">Select Taluk</option>
+                        <option value="Mysuru">Mysuru</option>
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Village</label>
+                    <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                        disabled={!formData.location?.taluk}
+                        value={formData.location?.village}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, village: e.target.value } })}
+                    >
+                        <option value="">Select Village</option>
+                        <option value="Main">Main</option>
+                    </select>
+                </div>
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700">Full Address</label>
+                <textarea
+                    rows={3}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                    placeholder="Enter full postal address"
+                ></textarea>
+            </div>
+        </div>
+    );
+
+    const renderStep4 = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Date of Birth</label>
+                    <input
+                        type="date"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        value={formData.birthday}
+                        onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Anniversary Date</label>
+                    <input
+                        type="date"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        value={formData.anniversary}
+                        onChange={(e) => setFormData({ ...formData, anniversary: e.target.value })}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700">Tags</label>
+                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                    {tags.map(tag => (
+                        <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-primary shadow-sm">
+                            {tag}
+                            <button onClick={() => setTags(tags.filter(t => t !== tag))}>
+                                <X size={12} className="text-gray-400 hover:text-red-500" />
+                            </button>
+                        </span>
+                    ))}
+                    <input
+                        type="text"
+                        className="flex-1 bg-transparent outline-none text-sm"
+                        placeholder="Type and press Enter..."
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && tagInput.trim()) {
+                                if (!tags.includes(tagInput.trim())) setTags([...tags, tagInput.trim()]);
+                                setTagInput('');
+                            }
+                        }}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700">Notes</label>
+                <textarea
+                    rows={3}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                    placeholder="Special instructions or background info"
+                ></textarea>
+            </div>
+
+            <div className="p-4 bg-yellow-50 rounded-2xl border-2 border-yellow-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <Star size={20} className="text-yellow-600 fill-yellow-600" />
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-900 tracking-tight">Mark as VIP Contact</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Prioritize this contact in greetings and tours</p>
+                        <p className="text-sm font-bold text-yellow-900">VIP Contact</p>
+                        <p className="text-xs text-yellow-700">Marked contacts appear with a star badge</p>
                     </div>
-                  </div>
-                  <button 
-                    onClick={() => setFormData({ ...formData, isVip: !formData.isVip })}
-                    className={`w-14 h-8 rounded-full relative transition-all ${
-                      formData.isVip ? 'bg-indigo-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${
-                      formData.isVip ? 'left-7' : 'left-1'
-                    }`} />
-                  </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <button
+                    onClick={() => setFormData({ ...formData, isVip: !formData.isVip })}
+                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${formData.isVip ? 'bg-yellow-500' : 'bg-gray-200'}`}
+                >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${formData.isVip ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+            </div>
         </div>
+    );
 
-        <div className="p-8 md:p-12 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            onClick={handleBack}
-            disabled={currentStep === 1}
-            className="rounded-2xl px-8 py-4 font-black text-xs uppercase tracking-widest"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" /> Back
-          </Button>
+    return (
+        <div className="max-w-3xl mx-auto py-8 px-4">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <button
+                        onClick={() => navigate('/staff/contacts')}
+                        className="flex items-center gap-1 text-sm text-gray-500 hover:text-primary mb-2 -ml-1 transition-colors group"
+                    >
+                        <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        Back to Contacts
+                    </button>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+                        {isEdit ? 'Edit Contact' : 'Add New Contact'}
+                    </h1>
+                </div>
+                <button
+                    onClick={() => navigate('/staff/contacts')}
+                    className="p-2.5 bg-gray-100 rounded-xl text-gray-400 hover:bg-gray-200 hover:text-gray-900 transition-all"
+                >
+                    <X size={20} />
+                </button>
+            </div>
 
-          {currentStep < STEPS.length ? (
-            <Button 
-              onClick={handleNext}
-              className="rounded-2xl px-10 py-4 font-black text-xs uppercase tracking-widest"
-            >
-              Next Step <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleSave}
-              className="rounded-2xl px-12 py-4 font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100"
-            >
-              <Check className="w-4 h-4 mr-2" /> Save Contact
-            </Button>
-          )}
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-slate-200/50 p-8 md:p-12">
+                {renderStepIndicator()}
+
+                <form onSubmit={(e) => e.preventDefault()}>
+                    {currentStep === 1 && renderStep1()}
+                    {currentStep === 2 && renderStep2()}
+                    {currentStep === 3 && renderStep3()}
+                    {currentStep === 4 && renderStep4()}
+
+                    <div className="flex items-center justify-between mt-12 pt-8 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={handleBack}
+                            disabled={currentStep === 1}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-gray-500 hover:bg-gray-100'
+                                }`}
+                        >
+                            <ChevronLeft size={20} />
+                            Back
+                        </button>
+
+                        {currentStep === 4 ? (
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                className="flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-95"
+                            >
+                                <Save size={20} />
+                                Save Contact
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleNext}
+                                className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all hover:scale-[1.02] active:scale-95"
+                            >
+                                Next Step
+                                <ChevronRight size={20} />
+                            </button>
+                        )}
+                    </div>
+                </form>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
+
+export default ContactFormPage;
