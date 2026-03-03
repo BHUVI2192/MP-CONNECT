@@ -1,14 +1,14 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  MapPin,
-  FileText,
-  MessageSquare,
-  Users,
-  Calendar,
-  PieChart,
+import { 
+  LayoutDashboard, 
+  MapPin, 
+  FileText, 
+  MessageSquare, 
+  Users, 
+  Calendar, 
+  PieChart, 
   LogOut,
   Gift,
   Search,
@@ -16,7 +16,8 @@ import {
   Camera,
   Layers,
   Navigation,
-  ShieldAlert
+  ShieldAlert,
+  BookOpen
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -33,19 +34,18 @@ const navItems = {
   ],
   [UserRole.PA]: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/pa' },
-    { label: 'Plan Today', icon: Calendar, path: '/pa/plan-today' },
+    { label: 'Plan Today', icon: Calendar, path: '/pa/plan' },
+    { label: 'Daybook', icon: BookOpen, path: '/pa/daybook' },
+    { label: 'Development Works', icon: HardHat, path: '/pa/works' },
     { label: 'Dispatch Hub', icon: ShieldAlert, path: '/pa/complaints' },
     { label: 'Tour Hub', icon: MapPin, path: '/pa/tours' },
-    { label: 'Daybook', icon: Calendar, path: '/pa/daybook' },
     { label: 'Draft Letters', icon: FileText, path: '/pa/letters' },
     { label: 'Constituent Greetings', icon: Gift, path: '/pa/greetings' },
   ],
   [UserRole.STAFF]: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/staff' },
-    { label: 'Plan Today', icon: Calendar, path: '/staff/plan-today' },
-    { label: 'Tour Program', icon: MapPin, path: '/staff/tours' },
+    { label: 'Contact Book', icon: Users, path: '/staff/contacts' },
     { label: 'Verify Complaints', icon: ShieldAlert, path: '/staff/complaints' },
-    { label: 'Draft Letters', icon: FileText, path: '/staff/letters' },
     { label: 'Data Entry', icon: Layers, path: '/staff/entry' },
     { label: 'Media Gallery', icon: Camera, path: '/staff/media' },
   ],
@@ -80,8 +80,9 @@ export const Sidebar: React.FC = () => {
           <button
             key={item.label}
             onClick={() => navigate(item.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative group ${location.pathname === item.path ? 'text-white' : 'text-slate-400 hover:text-white'
-              }`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative group ${
+              location.pathname === item.path ? 'text-white' : 'text-slate-400 hover:text-white'
+            }`}
           >
             {location.pathname === item.path && (
               <motion.div

@@ -32,8 +32,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
   
   // States
   const [isLogin, setIsLogin] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const [step, setStep] = useState(1); 
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(portalType === 'citizen' ? UserRole.CITIZEN : null);
+  const [step, setStep] = useState(portalType === 'citizen' ? 2 : 1); 
   const [isLoading, setIsLoading] = useState(false);
 
   // Filter roles based on portal type
@@ -43,17 +43,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
     { role: UserRole.STAFF, label: 'Office Staff', icon: Layers, desc: 'Operations & Verification', type: 'official' },
     { role: UserRole.CITIZEN, label: 'Constituent Portal', icon: Users, desc: 'Grievances & Services', type: 'citizen' },
   ].filter(cfg => cfg.type === portalType);
-
-  // If there's only one role (citizen portal), skip role selection step
-  useEffect(() => {
-    if (portalType === 'citizen') {
-      setSelectedRole(UserRole.CITIZEN);
-      setStep(2);
-    } else {
-      setSelectedRole(null);
-      setStep(1);
-    }
-  }, [portalType]);
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);

@@ -16,17 +16,13 @@ export interface User {
 
 export interface Letter {
   id: string;
-  type: 'Central' | 'State' | 'Devotional';
-  department: string;
-  title: string;
-  content: string; // Rich text or summary
-  status: 'Pending' | 'In Progress' | 'Completed';
-  version: number;
-  tags: string[];
-  attachmentUrl?: string; // Mock URL for the uploaded file
+  subject: string;
+  recipient: string;
+  recipientType: 'Ministry' | 'Local Authority' | 'Citizen';
+  status: 'Draft' | 'Pending Approval' | 'Signed' | 'Sent' | 'Response Received';
+  type: 'Recommendation' | 'Enquiry' | 'Formal';
   createdAt: string;
   updatedAt: string;
-  senderId: string; // Staff ID
 }
 
 export interface GreetingContact {
@@ -45,7 +41,7 @@ export interface Complaint {
   category: string;
   location: string;
   description: string;
-  status: 'New' | 'In Progress' | 'Resolved' | 'Forwarded' | 'Pending Verification' | 'Verified' | 'Dispatched' | 'Exported' | 'Rejected';
+  status: 'New' | 'In Progress' | 'Resolved' | 'Forwarded' | 'Pending Verification' | 'Verified' | 'Dispatched' | 'Rejected';
   createdAt: string;
   citizenName: string;
   priority?: 'High' | 'Medium' | 'Low';
@@ -59,12 +55,27 @@ export interface Project {
   id: string;
   name: string;
   category: string;
-  status: 'Planned' | 'In Progress' | 'Completed' | 'On Hold';
+  status: 'Planned' | 'Ongoing' | 'Completed' | 'On Hold';
   progress: number;
   budget: number;
+  zilla: string;
+  taluk: string;
+  gp: string;
   village: string;
+  address?: string;
   sanctionOrderNo: string;
   startDate: string;
+  completionDate?: string;
+  description?: string;
+  history?: string;
+  workDone?: string;
+  beneficiaries?: number;
+  fundingSource?: string;
+  photos?: { url: string; caption: string; date?: string }[];
+  videos?: { url: string; caption: string; thumbnail?: string }[];
+  coordinates?: { lat: number; lng: number };
+  isPublic?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface TourPackage {
@@ -106,95 +117,77 @@ export interface ScheduledTour {
   specialInstructions: string;
 }
 
-// Module 2: Plan Today Types
+export type PlanEventType = 'MEETING' | 'VISIT' | 'INSPECTION' | 'TOUR' | 'OTHER';
 
-export interface PlanTodayAttendee {
+export interface PersonInvolved {
   id: string;
   name: string;
   designation: string;
   contact: string;
 }
 
-export interface EventDocumentation {
-  actualStartTime?: string;
-  actualEndTime?: string;
-  actualAttendees?: string[]; // IDs or Names
-  summary?: string;
-  outcomes?: string;
-  actionItems?: string[];
-  attachments?: {
-    id: string;
-    type: 'Image' | 'Video' | 'Document';
-    url: string; // Mock URL
-    name: string;
-  }[];
-}
+export type PlanEventStatus = 'DRAFT' | 'SCHEDULED' | 'IN_PROGRESS' | 'VISITED' | 'CANCELLED';
 
-export interface PlanTodayEvent {
+export interface PlanEvent {
   id: string;
   title: string;
-  type: 'Visit' | 'Meeting' | 'Inspection' | 'Tour' | 'Other';
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  duration: string; // e.g., "1h 30m"
-  location: {
-    name: string;
-    address: string;
-    coordinates?: { lat: number, lng: number }; // Optional for now
+  type: PlanEventType;
+  scheduledTime: string; // HH:mm format (24h for easier sorting)
+  displayTime: string; // 12h format for display
+  duration: number; // in minutes
+  locationName: string;
+  address: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
   };
-  attendees: PlanTodayAttendee[];
   purpose: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled';
-  documentation?: EventDocumentation;
-  createdAt: string;
-  createdBy: string; // User ID
+  people: PersonInvolved[];
+  status: PlanEventStatus;
+  notes?: string;
+  voiceNoteUrl?: string;
+  transcript?: string;
+  finalNotes?: string;
+  cancellationReason?: string;
 }
 
-// Module 5: Tour Program Types
-
-export interface TourParticipant {
+export interface Contact {
   id: string;
   name: string;
-  role: string;
-  contact: string;
-  isNodalOfficer?: boolean;
-  notified?: boolean;
-  present?: boolean; // For attendance
+  designation: string;
+  organization: string;
+  category: string;
+  state: string;
+  zilla: string;
+  taluk: string;
+  gp: string;
+  village: string;
+  fullAddress?: string;
+  mobile: string;
+  altMobile?: string;
+  whatsapp?: string;
+  email: string;
+  isVip: boolean;
+  photoUrl?: string;
+  birthday?: string; // MM-DD
+  dob?: string; // YYYY-MM-DD
+  anniversary?: string; // MM-DD
+  tags?: string[];
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
 }
 
-export interface TourProgram {
+export type NotificationType = 'UPDATE' | 'VISITED' | 'CANCELLED';
+
+export interface Notification {
   id: string;
-  title: string;
-  type: 'Official Visit' | 'Inspection' | 'Community Engagement' | 'Other';
-  startDate: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  duration: string;
-  location: {
-    name: string; // Village/Area Name
-    address: string;
-    coordinates?: { lat: number, lng: number };
-  };
-  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
-  participants: TourParticipant[];
-  instructions: string;
-
-  // Post-Tour Documentation
-  actualAttributes?: {
-    startTime?: string;
-    endTime?: string;
-    summary?: string;
-    outcomes?: string;
-    feedback?: string;
-    attachments?: string[]; // Mock URLs
-  };
-
-  notificationLog?: {
-    recipientName: string;
-    channel: 'SMS' | 'WhatsApp';
-    status: 'Sent' | 'Failed' | 'Pending';
-    timestamp: string;
-  }[];
-
-  createdAt: string;
-  createdBy: string;
+  eventId: string;
+  eventName: string;
+  timestamp: string;
+  type: NotificationType;
+  notes?: string;
+  voiceNoteUrl?: string;
+  isRead: boolean;
+  internalNotes?: string;
 }

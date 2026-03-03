@@ -1,0 +1,195 @@
+[
+  {
+    "id": 0,
+    "author": "user",
+    "payload": {
+      "type": "text",
+      "text": "https://thiran.sece.ac.in/\"\n\nbuild a clone of this !! but in the cyber punk green and black theme ",
+      "files": [],
+      "fileUploads": [],
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1769001613,
+      "nanos": 343000000
+    }
+  },
+  {
+    "id": 1,
+    "author": "model",
+    "payload": {
+      "type": "thinking",
+      "text": "**Defining the Project Scope**\n\nOkay, so I'm envisioning a clone of the Thiran website, but with a sleek Cyberpunk Green and Black design. This will be for a technical symposium at Sri Eshwar College of Engineering. I see the main \"Hero\" section as a key component for this initial version.\n\n\n**Mapping Out the Website Structure**\n\nI've been drilling down on the website's structure. I'm prioritizing the inclusion of sections like \"About,\" \"Events,\" \"Schedule,\" and \"Contact\". I am thinking about how to integrate visual elements such as the logo, title, and dates into the design. I will focus on a grid-based layout with animations and vibrant colors. I'm leaning toward a deep black primary background with neon and matrix green accents.\n\n\n**Integrating Visual and Interactive Elements**\n\nI'm now integrating several visual and interactive elements. I'm focusing on components like \"Sponsors,\" \"Footer\" with contact and links, and I'm exploring the potential of using the Gemini service for an AI assistant or event details generator. I'm visualizing a \"Hero Section\" with a glitchy \"THIRAN\" title and animated background, with event cards incorporating hover effects. Using Tailwind's group-hover is a great idea. Plus, I want custom scrollbars and a sticky header for better UX. I'm also addressing the data issue with mock event data for categories and using Gemini for generated cyberpunk descriptions for \"Deep Dive\" buttons.\n\n\n**Planning the Implementation Phase**\n\nOkay, the project is officially getting underway. I've got the basic file structure mapped out now: `index.html`, `index.tsx`, `App.tsx`, and component files for the Navbar, Hero, About, Events, Stats, and Footer, alongside types and constants. I'm making sure to include \"Thiran 2024\" branding. I'm focusing on the Cyberpunk look, with a `bg-[#050505]` background, `text-[#00ff41]` text, and borders with `border-[#00ff41]/30` as well as glowing `shadow-[#00ff41]`. Let's get coding!\n\n\n",
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1769001613,
+      "nanos": 343000000
+    },
+    "doneTimestamp": {
+      "seconds": 1769001621,
+      "nanos": 944000000
+    }
+  },
+  {
+    "id": 2,
+    "author": "model",
+    "payload": {
+      "type": "generationTable",
+      "entries": [
+        {
+          "path": "metadata.json",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Application metadata including name, description, and requested permissions.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\n{\n  \"name\": \"THIRAN Cyberpunk Clone\",\n  \"description\": \"A high-performance, neon-green and black cyberpunk-themed clone of the Thiran SECE event website, featuring futuristic UI elements and event management mockups.\"\n}\n"
+            }
+          ]
+        },
+        {
+          "path": "index.html",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Main HTML entry point with Tailwind CSS and Google Fonts.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\n<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>THIRAN | Cyberpunk Edition</title>\n    <script src=\"https://cdn.tailwindcss.com\"></script>\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n    <link href=\"https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;600;700&display=swap\" rel=\"stylesheet\">\n    <style>\n      :root {\n        --neon-green: #00ff41;\n        --dark-bg: #050505;\n        --matrix-green: #008f11;\n      }\n      body {\n        background-color: var(--dark-bg);\n        color: var(--neon-green);\n        font-family: 'Inter', sans-serif;\n        overflow-x: hidden;\n      }\n      .font-orbitron { font-family: 'Orbitron', sans-serif; }\n      .font-mono { font-family: 'JetBrains+Mono', monospace; }\n      \n      /* Scanline Effect */\n      body::before {\n        content: \" \";\n        display: block;\n        position: fixed;\n        top: 0;\n        left: 0;\n        bottom: 0;\n        right: 0;\n        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));\n        z-index: 9999;\n        background-size: 100% 2px, 3px 100%;\n        pointer-events: none;\n      }\n\n      .cyber-grid {\n        background-size: 50px 50px;\n        background-image:\n          linear-gradient(to right, rgba(0, 255, 65, 0.1) 1px, transparent 1px),\n          linear-gradient(to bottom, rgba(0, 255, 65, 0.1) 1px, transparent 1px);\n      }\n\n      .glitch {\n        position: relative;\n        text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75),\n                    -0.025em -0.05em 0 rgba(0, 255, 0, 0.75),\n                    0.025em 0.05em 0 rgba(0, 0, 255, 0.75);\n        animation: glitch 500ms infinite;\n      }\n\n      @keyframes glitch {\n        0% { text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75), -0.025em -0.05em 0 rgba(0, 255, 0, 0.75), 0.025em 0.05em 0 rgba(0, 0, 255, 0.75); }\n        14% { text-shadow: 0.05em 0 0 rgba(255, 0, 0, 0.75), -0.025em -0.05em 0 rgba(0, 255, 0, 0.75), 0.025em 0.05em 0 rgba(0, 0, 255, 0.75); }\n        15% { text-shadow: -0.05em -0.025em 0 rgba(255, 0, 0, 0.75), 0.025em 0.025em 0 rgba(0, 255, 0, 0.75), -0.05em -0.05em 0 rgba(0, 0, 255, 0.75); }\n        49% { text-shadow: -0.05em -0.025em 0 rgba(255, 0, 0, 0.75), 0.025em 0.025em 0 rgba(0, 255, 0, 0.75), -0.05em -0.05em 0 rgba(0, 0, 255, 0.75); }\n        50% { text-shadow: 0.025em 0.05em 0 rgba(255, 0, 0, 0.75), 0.05em 0 0 rgba(0, 255, 0, 0.75), 0 -0.05em 0 rgba(0, 0, 255, 0.75); }\n        99% { text-shadow: 0.025em 0.05em 0 rgba(255, 0, 0, 0.75), 0.05em 0 0 rgba(0, 255, 0, 0.75), 0 -0.05em 0 rgba(0, 0, 255, 0.75); }\n        100% { text-shadow: -0.025em 0 0 rgba(255, 0, 0, 0.75), -0.025em -0.025em 0 rgba(0, 255, 0, 0.75), -0.025em -0.05em 0 rgba(0, 0, 255, 0.75); }\n      }\n\n      .cyber-border {\n        clip-path: polygon(\n          0 0, \n          calc(100% - 20px) 0, \n          100% 20px, \n          100% 100%, \n          20px 100%, \n          0 calc(100% - 20px)\n        );\n      }\n\n      ::-webkit-scrollbar { width: 5px; }\n      ::-webkit-scrollbar-track { background: var(--dark-bg); }\n      ::-webkit-scrollbar-thumb { background: var(--neon-green); border-radius: 10px; }\n    </style>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n  </body>\n</html>\n"
+            }
+          ]
+        },
+        {
+          "path": "index.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "React application entry point.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\n\nconst rootElement = document.getElementById('root');\nif (!rootElement) {\n  throw new Error(\"Could not find root element to mount to\");\n}\n\nconst root = ReactDOM.createRoot(rootElement);\nroot.render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>\n);\n"
+            }
+          ]
+        },
+        {
+          "path": "types.ts",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Global TypeScript types and interfaces.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nexport interface EventItem {\n  id: string;\n  title: string;\n  category: 'Technical' | 'Non-Technical' | 'Workshop' | 'Premium';\n  description: string;\n  prize?: string;\n  teamSize?: string;\n  image: string;\n}\n\nexport interface NavItem {\n  label: string;\n  href: string;\n}\n\nexport interface Stats {\n  label: string;\n  value: string;\n}\n"
+            }
+          ]
+        },
+        {
+          "path": "constants.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Application constants and mock data.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport { EventItem, NavItem, Stats } from './types';\n\nexport const NAV_ITEMS: NavItem[] = [\n  { label: 'HOME', href: '#home' },\n  { label: 'ABOUT', href: '#about' },\n  { label: 'EVENTS', href: '#events' },\n  { label: 'SCHEDULE', href: '#schedule' },\n  { label: 'GALLERY', href: '#gallery' },\n  { label: 'CONTACT', href: '#contact' },\n];\n\nexport const EVENTS: EventItem[] = [\n  {\n    id: '1',\n    title: 'CODE CONQUEST',\n    category: 'Technical',\n    description: 'Solve complex algorithmic puzzles in this high-stakes competitive coding arena.',\n    prize: '₹ 10,000',\n    teamSize: '1-2 Members',\n    image: 'https://picsum.photos/seed/code/600/400',\n  },\n  {\n    id: '2',\n    title: 'AI OLYMPIAD',\n    category: 'Technical',\n    description: 'Build predictive models and neural networks to tackle real-world data challenges.',\n    prize: '₹ 15,000',\n    teamSize: '3 Members',\n    image: 'https://picsum.photos/seed/ai/600/400',\n  },\n  {\n    id: '3',\n    title: 'CYBER ESCAPE',\n    category: 'Non-Technical',\n    description: 'A physical and digital scavenger hunt hidden within the campus corridors.',\n    prize: '₹ 5,000',\n    teamSize: '4 Members',\n    image: 'https://picsum.photos/seed/cyber/600/400',\n  },\n  {\n    id: '4',\n    title: 'QUANTUM WORKSHOP',\n    category: 'Workshop',\n    description: 'Hands-on session on quantum computing fundamentals and Qiskit framework.',\n    teamSize: 'Individual',\n    image: 'https://picsum.photos/seed/quantum/600/400',\n  },\n  {\n    id: '5',\n    title: 'ROBO-WRESTLE',\n    category: 'Premium',\n    description: 'The ultimate bot-vs-bot combat. Only one machine stands tall.',\n    prize: '₹ 25,000',\n    teamSize: '2-4 Members',\n    image: 'https://picsum.photos/seed/robot/600/400',\n  },\n  {\n    id: '6',\n    title: 'UI/UX FRONTIER',\n    category: 'Technical',\n    description: 'Design the future of human-machine interaction in this 6-hour sprint.',\n    prize: '₹ 8,000',\n    teamSize: '2 Members',\n    image: 'https://picsum.photos/seed/design/600/400',\n  },\n];\n\nexport const STATS: Stats[] = [\n  { label: 'PARTICIPANTS', value: '5000+' },\n  { label: 'EVENTS', value: '45+' },\n  { label: 'COLLEGES', value: '150+' },\n  { label: 'PRIZE POOL', value: '₹ 5L+' },\n];\n"
+            }
+          ]
+        },
+        {
+          "path": "components/Navbar.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Responsive navigation bar with cyberpunk styling.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React, { useState, useEffect } from 'react';\nimport { NAV_ITEMS } from '../constants';\n\nconst Navbar: React.FC = () => {\n  const [scrolled, setScrolled] = useState(false);\n  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);\n\n  useEffect(() => {\n    const handleScroll = () => setScrolled(window.scrollY > 50);\n    window.addEventListener('scroll', handleScroll);\n    return () => window.removeEventListener('scroll', handleScroll);\n  }, []);\n\n  return (\n    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur-md py-4 border-b border-[#00ff41]/30' : 'bg-transparent py-6'}`}>\n      <div className=\"container mx-auto px-4 flex justify-between items-center\">\n        <div className=\"flex items-center space-x-2\">\n          <div className=\"w-10 h-10 bg-[#00ff41] flex items-center justify-center font-orbitron font-black text-black text-xl rotate-45\">\n            <span className=\"-rotate-45\">T</span>\n          </div>\n          <span className=\"font-orbitron font-black text-2xl tracking-tighter\">THIRAN <span className=\"text-[#00ff41]\">2025</span></span>\n        </div>\n\n        {/* Desktop Links */}\n        <div className=\"hidden md:flex space-x-8\">\n          {NAV_ITEMS.map((item) => (\n            <a \n              key={item.label} \n              href={item.href} \n              className=\"font-orbitron text-sm font-semibold hover:text-[#00ff41] transition-colors relative group\"\n            >\n              {item.label}\n              <span className=\"absolute -bottom-1 left-0 w-0 h-[2px] bg-[#00ff41] transition-all group-hover:w-full\"></span>\n            </a>\n          ))}\n        </div>\n\n        <button \n          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}\n          className=\"md:hidden text-[#00ff41] p-2\"\n        >\n          <svg className=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n            {mobileMenuOpen ? (\n              <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M6 18L18 6M6 6l12 12\" />\n            ) : (\n              <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M4 6h16M4 12h16m-7 6h7\" />\n            )}\n          </svg>\n        </button>\n      </div>\n\n      {/* Mobile Menu */}\n      {mobileMenuOpen && (\n        <div className=\"md:hidden absolute top-full left-0 w-full bg-black border-b border-[#00ff41]/30 py-6 px-4 animate-in fade-in slide-in-from-top-4 duration-300\">\n          <div className=\"flex flex-col space-y-4\">\n            {NAV_ITEMS.map((item) => (\n              <a \n                key={item.label} \n                href={item.href} \n                className=\"font-orbitron text-lg font-bold hover:text-[#00ff41]\"\n                onClick={() => setMobileMenuOpen(false)}\n              >\n                {item.label}\n              </a>\n            ))}\n          </div>\n        </div>\n      )}\n    </nav>\n  );\n};\n\nexport default Navbar;\n"
+            }
+          ]
+        },
+        {
+          "path": "components/Hero.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Hero section with glitch text and countdown.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React, { useState, useEffect } from 'react';\n\nconst Hero: React.FC = () => {\n  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });\n\n  useEffect(() => {\n    const target = new Date(\"2025-03-28T00:00:00\");\n    const interval = setInterval(() => {\n      const now = new Date();\n      const diff = target.getTime() - now.getTime();\n      \n      const d = Math.floor(diff / (1000 * 60 * 60 * 24));\n      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));\n      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));\n      const s = Math.floor((diff % (1000 * 60)) / 1000);\n      \n      setTimeLeft({ days: d, hours: h, minutes: m, seconds: s });\n    }, 1000);\n    return () => clearInterval(interval);\n  }, []);\n\n  return (\n    <section id=\"home\" className=\"relative min-h-screen flex items-center justify-center overflow-hidden cyber-grid\">\n      {/* Background Animated Elements */}\n      <div className=\"absolute inset-0 z-0 pointer-events-none\">\n        <div className=\"absolute top-1/4 left-1/4 w-96 h-96 bg-[#00ff41]/5 rounded-full blur-[120px] animate-pulse\"></div>\n        <div className=\"absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00ff41]/5 rounded-full blur-[120px] animate-pulse delay-1000\"></div>\n      </div>\n\n      <div className=\"container mx-auto px-4 z-10 text-center\">\n        <div className=\"inline-block px-4 py-1 border border-[#00ff41]/50 font-mono text-xs mb-6 tracking-widest text-[#00ff41] animate-bounce\">\n          SYSTEMS ONLINE // MARCH 28-29, 2025\n        </div>\n        \n        <h1 className=\"font-orbitron text-6xl md:text-9xl font-black mb-4 glitch tracking-tighter leading-none\">\n          THIRAN\n        </h1>\n        \n        <p className=\"font-mono text-lg md:text-2xl mb-12 max-w-2xl mx-auto text-gray-400\">\n          The largest technical symposium of South India. \n          <span className=\"text-[#00ff41]\"> Unleash the innovator within.</span>\n        </p>\n\n        <div className=\"flex flex-wrap justify-center gap-4 mb-16\">\n          <button className=\"cyber-border bg-[#00ff41] text-black px-8 py-4 font-orbitron font-bold text-lg hover:bg-white transition-all transform hover:scale-105\">\n            REGISTER NOW_\n          </button>\n          <button className=\"cyber-border border-2 border-[#00ff41] text-[#00ff41] px-8 py-4 font-orbitron font-bold text-lg hover:bg-[#00ff41]/10 transition-all\">\n            VIEW SCHEDULE\n          </button>\n        </div>\n\n        {/* Countdown */}\n        <div className=\"flex justify-center space-x-6 md:space-x-12 font-orbitron\">\n          {[\n            { val: timeLeft.days, label: 'DAYS' },\n            { val: timeLeft.hours, label: 'HOURS' },\n            { val: timeLeft.minutes, label: 'MINS' },\n            { val: timeLeft.seconds, label: 'SECS' }\n          ].map((item, idx) => (\n            <div key={idx} className=\"flex flex-col items-center\">\n              <span className=\"text-4xl md:text-6xl font-black text-[#00ff41]\">\n                {String(item.val).padStart(2, '0')}\n              </span>\n              <span className=\"text-xs md:text-sm font-bold tracking-[0.2em] text-gray-500 mt-2\">\n                {item.label}\n              </span>\n            </div>\n          ))}\n        </div>\n      </div>\n      \n      {/* Scroll indicator */}\n      <div className=\"absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce\">\n        <svg className=\"w-6 h-6 text-[#00ff41]\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n          <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 14l-7 7m0 0l-7-7m7 7V3\" />\n        </svg>\n      </div>\n    </section>\n  );\n};\n\nexport default Hero;\n"
+            }
+          ]
+        },
+        {
+          "path": "components/About.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "About section explaining the event.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React from 'react';\n\nconst About: React.FC = () => {\n  return (\n    <section id=\"about\" className=\"py-24 bg-black relative\">\n      <div className=\"container mx-auto px-4\">\n        <div className=\"grid md:grid-cols-2 gap-12 items-center\">\n          <div>\n            <h2 className=\"font-orbitron text-4xl md:text-5xl font-black mb-8 border-l-4 border-[#00ff41] pl-6\">\n              THE <span className=\"text-[#00ff41]\">MANIFESTO</span>\n            </h2>\n            <div className=\"space-y-6 font-mono text-gray-400 text-lg leading-relaxed\">\n              <p>\n                THIRAN is more than just a symposium; it is a nexus where technology meets creativity, and ideas morph into innovation. Hosted annually by Sri Eshwar College of Engineering, it has evolved into a premier state-level platform.\n              </p>\n              <p>\n                With over <span className=\"text-white\">45+ events</span> spanning across Engineering, Design, and Management, THIRAN challenges the brightest minds to push beyond the conventional.\n              </p>\n              <div className=\"pt-6\">\n                <ul className=\"space-y-3\">\n                  {['Industry Expert Keynotes', 'High-Stakes Hackathons', 'Cross-Domain Networking'].map((item, i) => (\n                    <li key={i} className=\"flex items-center space-x-3\">\n                      <span className=\"w-2 h-2 bg-[#00ff41] rounded-full\"></span>\n                      <span>{item}</span>\n                    </li>\n                  ))}\n                </ul>\n              </div>\n            </div>\n          </div>\n          \n          <div className=\"relative group\">\n            <div className=\"absolute -inset-1 bg-[#00ff41] rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200\"></div>\n            <div className=\"relative bg-[#0a0a0a] cyber-border overflow-hidden\">\n              <img \n                src=\"https://picsum.photos/seed/college/800/600\" \n                alt=\"College Campus\" \n                className=\"w-full h-auto grayscale hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100\"\n              />\n              <div className=\"absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent\"></div>\n              <div className=\"absolute bottom-6 left-6\">\n                <span className=\"font-orbitron text-xl font-bold bg-[#00ff41] text-black px-4 py-1\">SECE HQ</span>\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n    </section>\n  );\n};\n\nexport default About;\n"
+            }
+          ]
+        },
+        {
+          "path": "components/Stats.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Dynamic stats section with neon counters.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React from 'react';\nimport { STATS } from '../constants';\n\nconst Stats: React.FC = () => {\n  return (\n    <div className=\"bg-[#050505] py-16 border-y border-[#00ff41]/20\">\n      <div className=\"container mx-auto px-4\">\n        <div className=\"grid grid-cols-2 md:grid-cols-4 gap-8\">\n          {STATS.map((stat, idx) => (\n            <div key={idx} className=\"text-center group\">\n              <div className=\"font-orbitron text-4xl md:text-5xl font-black text-[#00ff41] mb-2 group-hover:scale-110 transition-transform\">\n                {stat.value}\n              </div>\n              <div className=\"font-mono text-xs md:text-sm tracking-[0.3em] text-gray-500\">\n                {stat.label}\n              </div>\n            </div>\n          ))}\n        </div>\n      </div>\n    </div>\n  );\n};\n\nexport default Stats;\n"
+            }
+          ]
+        },
+        {
+          "path": "components/Events.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Event grid with hover-able cards.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React, { useState } from 'react';\nimport { EVENTS } from '../constants';\nimport { EventItem } from '../types';\n\nconst Events: React.FC = () => {\n  const [filter, setFilter] = useState<string>('All');\n  const categories = ['All', 'Technical', 'Non-Technical', 'Workshop', 'Premium'];\n\n  const filteredEvents = filter === 'All' \n    ? EVENTS \n    : EVENTS.filter(e => e.category === filter);\n\n  return (\n    <section id=\"events\" className=\"py-24 bg-black relative cyber-grid\">\n      <div className=\"container mx-auto px-4\">\n        <div className=\"flex flex-col md:flex-row md:items-end justify-between mb-12 gap-8\">\n          <div>\n            <h2 className=\"font-orbitron text-4xl md:text-6xl font-black\">\n              EVENT <span className=\"text-[#00ff41]\">MATRIX</span>\n            </h2>\n            <p className=\"font-mono text-gray-500 mt-4\">Select your protocol and enter the system.</p>\n          </div>\n          \n          <div className=\"flex flex-wrap gap-2\">\n            {categories.map(cat => (\n              <button\n                key={cat}\n                onClick={() => setFilter(cat)}\n                className={`px-4 py-2 font-orbitron text-xs font-bold transition-all ${\n                  filter === cat \n                    ? 'bg-[#00ff41] text-black shadow-[0_0_15px_rgba(0,255,65,0.5)]' \n                    : 'bg-transparent text-[#00ff41] border border-[#00ff41]/30 hover:bg-[#00ff41]/10'\n                }`}\n              >\n                {cat.toUpperCase()}\n              </button>\n            ))}\n          </div>\n        </div>\n\n        <div className=\"grid md:grid-cols-2 lg:grid-cols-3 gap-8\">\n          {filteredEvents.map(event => (\n            <EventCard key={event.id} event={event} />\n          ))}\n        </div>\n      </div>\n    </section>\n  );\n};\n\nconst EventCard: React.FC<{ event: EventItem }> = ({ event }) => {\n  return (\n    <div className=\"group relative bg-[#0a0a0a] border border-[#00ff41]/20 overflow-hidden cyber-border hover:border-[#00ff41]/60 transition-all\">\n      <div className=\"h-48 relative overflow-hidden\">\n        <img \n          src={event.image} \n          alt={event.title}\n          className=\"w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110\" \n        />\n        <div className=\"absolute top-4 right-4 bg-black/80 backdrop-blur-md px-3 py-1 text-[10px] font-mono border border-[#00ff41]/40\">\n          {event.category.toUpperCase()}\n        </div>\n      </div>\n      \n      <div className=\"p-6\">\n        <h3 className=\"font-orbitron text-xl font-bold mb-3 group-hover:text-[#00ff41] transition-colors\">\n          {event.title}\n        </h3>\n        <p className=\"font-mono text-sm text-gray-400 mb-6 line-clamp-2\">\n          {event.description}\n        </p>\n        \n        <div className=\"flex items-center justify-between text-xs font-mono\">\n          <div className=\"text-gray-500\">\n            TEAM: <span className=\"text-white\">{event.teamSize}</span>\n          </div>\n          {event.prize && (\n            <div className=\"text-[#00ff41] font-bold\">\n              PRIZE: {event.prize}\n            </div>\n          )}\n        </div>\n        \n        <button className=\"w-full mt-6 py-3 bg-[#00ff41]/10 border border-[#00ff41]/40 font-orbitron text-sm font-bold hover:bg-[#00ff41] hover:text-black transition-all\">\n          EXPLORE_ENTRY\n        </button>\n      </div>\n\n      {/* Decorative corner */}\n      <div className=\"absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-[#00ff41]/0 group-hover:border-[#00ff41] transition-all\"></div>\n      <div className=\"absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-[#00ff41]/0 group-hover:border-[#00ff41] transition-all\"></div>\n    </div>\n  );\n};\n\nexport default Events;\n"
+            }
+          ]
+        },
+        {
+          "path": "components/Footer.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Footer with contact info and social links.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React from 'react';\n\nconst Footer: React.FC = () => {\n  return (\n    <footer id=\"contact\" className=\"bg-[#050505] border-t border-[#00ff41]/20 py-20\">\n      <div className=\"container mx-auto px-4\">\n        <div className=\"grid md:grid-cols-4 gap-12\">\n          <div className=\"col-span-1 md:col-span-2\">\n            <div className=\"flex items-center space-x-2 mb-6\">\n              <div className=\"w-8 h-8 bg-[#00ff41] flex items-center justify-center font-orbitron font-black text-black rotate-45\">\n                <span className=\"-rotate-45\">T</span>\n              </div>\n              <span className=\"font-orbitron font-black text-2xl tracking-tighter\">THIRAN <span className=\"text-[#00ff41]\">2025</span></span>\n            </div>\n            <p className=\"font-mono text-gray-400 max-w-sm mb-8\">\n              Fueling the fires of innovation at Sri Eshwar College of Engineering. Join the revolution.\n            </p>\n            <div className=\"flex space-x-4\">\n              {['FB', 'TW', 'IG', 'LI'].map(social => (\n                <a key={social} href=\"#\" className=\"w-10 h-10 border border-[#00ff41]/30 flex items-center justify-center font-mono text-xs hover:bg-[#00ff41] hover:text-black transition-all\">\n                  {social}\n                </a>\n              ))}\n            </div>\n          </div>\n          \n          <div>\n            <h4 className=\"font-orbitron text-lg font-bold mb-6 text-[#00ff41]\">LOCATION_</h4>\n            <div className=\"font-mono text-sm text-gray-400 space-y-4\">\n              <p>Sri Eshwar College of Engineering,<br />Kondampatti Post, Coimbatore - 641 202.</p>\n              <p>Tamil Nadu, India.</p>\n            </div>\n          </div>\n\n          <div>\n            <h4 className=\"font-orbitron text-lg font-bold mb-6 text-[#00ff41]\">CONTACT_</h4>\n            <div className=\"font-mono text-sm text-gray-400 space-y-4\">\n              <p>Email: thiran@sece.ac.in</p>\n              <p>Admin: +91 98765 43210</p>\n              <p>Support: +91 01234 56789</p>\n            </div>\n          </div>\n        </div>\n\n        <div className=\"mt-20 pt-8 border-t border-[#00ff41]/10 flex flex-col md:flex-row justify-between items-center font-mono text-[10px] text-gray-600 tracking-widest\">\n          <p>© 2025 SECE THIRAN TEAM. ALL RIGHTS RESERVED.</p>\n          <p>DESIGNED FOR THE FUTURE. [V 3.0.1]</p>\n        </div>\n      </div>\n    </footer>\n  );\n};\n\nexport default Footer;\n"
+            }
+          ]
+        },
+        {
+          "path": "App.tsx",
+          "generationType": 0,
+          "isDone": true,
+          "description": "Main application component assembling all sections.",
+          "diffs": [
+            {
+              "target": "",
+              "replacement": "\nimport React from 'react';\nimport Navbar from './components/Navbar';\nimport Hero from './components/Hero';\nimport About from './components/About';\nimport Stats from './components/Stats';\nimport Events from './components/Events';\nimport Footer from './components/Footer';\n\nconst App: React.FC = () => {\n  return (\n    <div className=\"min-h-screen selection:bg-[#00ff41] selection:text-black\">\n      <Navbar />\n      \n      <main>\n        <Hero />\n        <Stats />\n        <About />\n        \n        {/* Gallery Preview Placeholder */}\n        <section id=\"gallery\" className=\"py-24 bg-[#0a0a0a]\">\n          <div className=\"container mx-auto px-4\">\n            <h2 className=\"font-orbitron text-4xl md:text-5xl font-black mb-12 text-center\">\n              PREVIOUS <span className=\"text-[#00ff41]\">LOGS</span>\n            </h2>\n            <div className=\"grid grid-cols-2 md:grid-cols-4 gap-4\">\n              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (\n                <div key={i} className=\"aspect-square bg-gray-900 overflow-hidden cyber-border group border border-[#00ff41]/20\">\n                  <img \n                    src={`https://picsum.photos/seed/thiran${i}/400/400`} \n                    alt=\"Gallery\" \n                    className=\"w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-100 group-hover:scale-110\"\n                  />\n                </div>\n              ))}\n            </div>\n          </div>\n        </section>\n\n        <Events />\n\n        {/* Schedule Placeholder */}\n        <section id=\"schedule\" className=\"py-24 bg-black border-t border-[#00ff41]/20\">\n          <div className=\"container mx-auto px-4 max-w-4xl\">\n            <h2 className=\"font-orbitron text-4xl font-black mb-12 text-center\">\n              TIMELINE <span className=\"text-[#00ff41]\">PROTOCOL</span>\n            </h2>\n            <div className=\"space-y-8\">\n              {[\n                { time: '09:00 AM', event: 'Inauguration Ceremony', loc: 'Main Auditorium' },\n                { time: '11:00 AM', event: 'Technical Rounds Start', loc: 'Respective Labs' },\n                { time: '01:00 PM', event: 'Energy Recharge (Lunch)', loc: 'Food Court' },\n                { time: '02:00 PM', event: 'Guest Keynote Session', loc: 'SECE Hall' },\n                { time: '04:00 PM', event: 'Workshop Demos', loc: 'Innovation Lab' }\n              ].map((item, idx) => (\n                <div key={idx} className=\"flex gap-8 group\">\n                  <div className=\"font-mono text-[#00ff41] text-lg font-bold w-24 shrink-0 pt-1\">\n                    {item.time}\n                  </div>\n                  <div className=\"relative pb-8 border-l border-[#00ff41]/30 pl-8 group-last:pb-0\">\n                    <div className=\"absolute top-2 -left-[5px] w-2 h-2 bg-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.8)]\"></div>\n                    <h4 className=\"font-orbitron text-xl font-bold group-hover:text-[#00ff41] transition-colors\">\n                      {item.event}\n                    </h4>\n                    <p className=\"font-mono text-gray-500 text-sm mt-1 uppercase\">\n                      Location: {item.loc}\n                    </p>\n                  </div>\n                </div>\n              ))}\n            </div>\n          </div>\n        </section>\n      </main>\n\n      <Footer />\n      \n      {/* Floating CTA for Mobile */}\n      <div className=\"fixed bottom-6 right-6 md:hidden z-40\">\n        <button className=\"w-16 h-16 bg-[#00ff41] rounded-full flex items-center justify-center text-black shadow-[0_0_20px_rgba(0,255,65,0.6)] animate-pulse\">\n          <svg className=\"w-8 h-8\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n            <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={3} d=\"M12 4v16m8-8H4\" />\n          </svg>\n        </button>\n      </div>\n    </div>\n  );\n};\n\nexport default App;\n"
+            }
+          ]
+        }
+      ]
+    },
+    "createdTimestamp": {
+      "seconds": 1769001621,
+      "nanos": 944000000
+    },
+    "doneTimestamp": {
+      "seconds": 1769001622,
+      "nanos": 55000000
+    }
+  }
+]
