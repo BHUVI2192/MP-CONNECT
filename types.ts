@@ -59,12 +59,27 @@ export interface Project {
   id: string;
   name: string;
   category: string;
-  status: 'Planned' | 'In Progress' | 'Completed' | 'On Hold';
+  status: 'Planned' | 'Ongoing' | 'Completed' | 'On Hold';
   progress: number;
   budget: number;
+  zilla: string;
+  taluk: string;
+  gp: string;
   village: string;
+  address?: string;
   sanctionOrderNo: string;
   startDate: string;
+  completionDate?: string;
+  description?: string;
+  history?: string;
+  workDone?: string;
+  beneficiaries?: number;
+  fundingSource?: string;
+  photos?: { url: string; caption: string; date?: string }[];
+  videos?: { url: string; caption: string; thumbnail?: string }[];
+  coordinates?: { lat: number; lng: number };
+  isPublic?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface TourPackage {
@@ -273,14 +288,69 @@ export interface Contact {
   name: string;
   designation: string;
   organization: string;
-  photoUrl?: string; // If no photo, initials avatar should be used
-  location: ContactLocation;
+  category: string;
+  state: string;
+  zilla: string;
+  taluk: string;
+  gp: string;
+  village: string;
+  fullAddress?: string;
   mobile: string;
-  whatsapp?: string; // Optional if different from mobile
-  email?: string;
-  category: ContactCategory;
+  altMobile?: string;
+  whatsapp?: string;
+  email: string;
   isVip: boolean;
+  photoUrl?: string;
   birthday?: string; // MM-DD
+  dob?: string; // YYYY-MM-DD
   anniversary?: string; // MM-DD
-  addedAt: string; // ISO date string
+  tags?: string[];
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export type NotificationType = 'UPDATE' | 'VISITED' | 'CANCELLED';
+
+export interface Notification {
+  id: string;
+  eventId: string;
+  eventName: string;
+  timestamp: string;
+  type: NotificationType;
+  notes?: string;
+  voiceNoteUrl?: string;
+  isRead: boolean;
+  internalNotes?: string;
+}
+
+export interface Photo {
+  id: string;
+  url: string;
+  thumbnailUrl?: string;
+  caption?: string;
+  photographer?: string;
+  dateTaken?: string;
+  fileSize?: number;
+  fileName?: string;
+  isCover?: boolean;
+  status?: 'Uploading' | 'Processing' | 'Done' | 'Error';
+  uploadProgress?: number;
+}
+
+export interface Album {
+  id: string;
+  name: string;
+  description: string;
+  eventDate: string;
+  eventType: string;
+  location: string;
+  tags: string[];
+  isPublic: boolean;
+  coverPhotoUrl?: string;
+  photoCount: number;
+  viewCount?: number;
+  downloadCount?: number;
+  photos: Photo[];
+  createdAt: string;
 }

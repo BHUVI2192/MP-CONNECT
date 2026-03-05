@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Letter, Complaint, Project, TourProgram, PlanTodayEvent } from '../types';
+import { Letter, Complaint, Project, TourProgram, PlanTodayEvent, Contact } from '../types';
 
 // Define the shape of our context
 interface MockDataContextType {
@@ -8,6 +8,7 @@ interface MockDataContextType {
     tours: TourProgram[];
     works: Project[];
     events: PlanTodayEvent[];
+    contacts: Contact[];
 
     // Actions
     addComplaint: (complaint: Complaint) => void;
@@ -24,6 +25,9 @@ interface MockDataContextType {
 
     addWork: (work: Project) => void;
     updateWork: (work: Project) => void;
+
+    addContact: (contact: Contact) => void;
+    updateContact: (contact: Contact) => void;
 }
 
 const MockDataContext = createContext<MockDataContextType | undefined>(undefined);
@@ -101,12 +105,49 @@ const initialEvents: PlanTodayEvent[] = [
     }
 ];
 
+const initialContacts: Contact[] = [
+    {
+        id: '1',
+        name: 'Dr. Rajesh Kumar',
+        designation: 'District Magistrate',
+        organization: 'District Administration',
+        category: 'Government Official',
+        state: 'Karnataka',
+        zilla: 'Mysuru',
+        taluk: 'Mysuru',
+        gp: 'City',
+        village: 'Mysuru',
+        mobile: '9876543210',
+        email: 'dm.mysuru@gov.in',
+        isVip: true,
+        photoUrl: 'https://picsum.photos/seed/rajesh/200/200',
+        createdAt: '2024-01-15',
+    },
+    {
+        id: '2',
+        name: 'Smt. Lakshmi Devi',
+        designation: 'GP President',
+        organization: 'Rampur Gram Panchayat',
+        category: 'Political Leader',
+        state: 'Karnataka',
+        zilla: 'Mysuru',
+        taluk: 'Hunsur',
+        gp: 'Rampur',
+        village: 'Rampur',
+        mobile: '9876543211',
+        email: 'lakshmi.gp@gmail.com',
+        isVip: false,
+        createdAt: '2024-02-10',
+    },
+];
+
 export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [complaints, setComplaints] = useState<Complaint[]>(initialComplaints);
     const [letters, setLetters] = useState<Letter[]>(initialLetters);
     const [tours, setTours] = useState<TourProgram[]>(initialTours);
     const [works, setWorks] = useState<Project[]>(initialWorks);
     const [events, setEvents] = useState<PlanTodayEvent[]>(initialEvents);
+    const [contacts, setContacts] = useState<Contact[]>(initialContacts);
 
     const addComplaint = (complaint: Complaint) => setComplaints(prev => [complaint, ...prev]);
     const updateComplaintStatus = (id: string, status: Complaint['status'], remarks?: string) => {
@@ -135,14 +176,20 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         setWorks(prev => prev.map(w => w.id === work.id ? work : w));
     };
 
+    const addContact = (contact: Contact) => setContacts(prev => [contact, ...prev]);
+    const updateContact = (contact: Contact) => {
+        setContacts(prev => prev.map(c => c.id === contact.id ? contact : c));
+    };
+
     return (
         <MockDataContext.Provider value={{
-            complaints, letters, tours, works, events,
+            complaints, letters, tours, works, events, contacts,
             addComplaint, updateComplaintStatus,
             addLetter, updateLetterStatus,
             addTour, updateTour,
             addEvent, updateEvent,
-            addWork, updateWork
+            addWork, updateWork,
+            addContact, updateContact
         }}>
             {children}
         </MockDataContext.Provider>

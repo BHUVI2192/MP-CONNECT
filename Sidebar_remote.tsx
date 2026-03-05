@@ -1,14 +1,14 @@
-
+﻿
 import React from 'react';
 import { motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  MapPin,
-  FileText,
-  MessageSquare,
-  Users,
-  Calendar,
-  PieChart,
+import { 
+  LayoutDashboard, 
+  MapPin, 
+  FileText, 
+  MessageSquare, 
+  Users, 
+  Calendar, 
+  PieChart, 
   LogOut,
   Gift,
   Search,
@@ -17,8 +17,6 @@ import {
   Layers,
   Navigation,
   ShieldAlert,
-  Plus,
-  Upload,
   BookOpen
 } from 'lucide-react';
 import { UserRole } from '../types';
@@ -42,20 +40,15 @@ const navItems = {
     { label: 'Development Works', icon: HardHat, path: '/pa/works' },
     { label: 'Dispatch Hub', icon: ShieldAlert, path: '/pa/complaints' },
     { label: 'Tour Hub', icon: MapPin, path: '/pa/tours' },
-    { label: 'Schedule Tour', icon: Plus, path: '/pa/tours/new' },
     { label: 'Draft Letters', icon: FileText, path: '/pa/letters' },
     { label: 'Constituent Greetings', icon: Gift, path: '/pa/greetings' },
     { label: 'Photo Gallery', icon: Camera, path: '/pa/gallery' },
   ],
   [UserRole.STAFF]: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/staff' },
-    { label: 'Plan Today', icon: Calendar, path: '/staff/plan-today' },
-    { label: 'Tour Program', icon: MapPin, path: '/staff/tours' },
-    { label: 'Verify Complaints', icon: ShieldAlert, path: '/staff/complaints' },
-    { label: 'Draft Letters', icon: FileText, path: '/staff/letters' },
-    { label: 'Project Data', icon: Layers, path: '/staff/entry' },
-    { label: 'Work Upload', icon: Upload, path: '/staff/works/upload' },
     { label: 'Contact Book', icon: Users, path: '/staff/contacts' },
+    { label: 'Verify Complaints', icon: ShieldAlert, path: '/staff/complaints' },
+    { label: 'Data Entry', icon: Layers, path: '/staff/entry' },
     { label: 'Media Gallery', icon: Camera, path: '/staff/media' },
   ],
   [UserRole.CITIZEN]: [
@@ -90,8 +83,9 @@ export const Sidebar: React.FC = () => {
           <button
             key={item.label}
             onClick={() => navigate(item.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative group ${location.pathname === item.path ? 'text-white' : 'text-slate-400 hover:text-white'
-              }`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative group ${
+              location.pathname === item.path ? 'text-white' : 'text-slate-400 hover:text-white'
+            }`}
           >
             {location.pathname === item.path && (
               <motion.div
