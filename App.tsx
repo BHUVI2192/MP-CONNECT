@@ -33,6 +33,10 @@ import { LettersPaPage } from './pages/pa/LettersPaPage';
 import { GreetingsPaPage } from './pages/pa/GreetingsPaPage';
 import { ComplaintsPaPage } from './pages/pa/ComplaintsPaPage';
 import { GalleryPaPage } from './pages/pa/GalleryPaPage';
+import { SpeechArchivePage } from './pages/pa/SpeechArchivePage';
+import { ParliamentLettersPage } from './pages/pa/ParliamentLettersPage';
+import { ParliamentQuestionsPage } from './pages/pa/ParliamentQuestionsPage';
+import { ParliamentTrackerPage } from './pages/pa/ParliamentTrackerPage';
 
 // Staff View Pages
 import { WorksEntryPage } from './pages/staff/WorksEntryPage';
@@ -44,6 +48,9 @@ import { StaffToursPage } from './pages/staff/StaffToursPage';
 import { ContactDetailPage } from './pages/staff/ContactDetailPage';
 import { ContactBookPage } from './pages/staff/ContactBookPage';
 import { BulkUploadPage } from './pages/staff/BulkUploadPage';
+import { AuditLogsPage } from './pages/staff/AuditLogsPage';
+import { SpeechUploadPage } from './pages/staff/SpeechUploadPage';
+import { StaffParliamentEntryPage } from './pages/staff/StaffParliamentEntryPage';
 
 import { ContactFormPage } from './pages/staff/ContactFormPage';
 import { UploadWorkPage } from './pages/staff/UploadWorkPage';
@@ -132,6 +139,10 @@ const App: React.FC = () => {
                 <Route path="/pa/greetings" element={<ProtectedRoute officialOnly><GreetingsPaPage /></ProtectedRoute>} />
                 <Route path="/pa/complaints" element={<ProtectedRoute officialOnly><ComplaintsPaPage /></ProtectedRoute>} />
                 <Route path="/pa/gallery" element={<ProtectedRoute officialOnly><GalleryPaPage /></ProtectedRoute>} />
+                <Route path="/pa/speeches" element={<ProtectedRoute officialOnly><SpeechArchivePage /></ProtectedRoute>} />
+                <Route path="/pa/parliament" element={<ProtectedRoute officialOnly><ParliamentTrackerPage /></ProtectedRoute>} />
+                <Route path="/pa/parliament/letters" element={<ProtectedRoute officialOnly><ParliamentLettersPage /></ProtectedRoute>} />
+                <Route path="/pa/parliament/questions" element={<ProtectedRoute officialOnly><ParliamentQuestionsPage /></ProtectedRoute>} />
 
                 {/* Staff Routes (Protected Official) */}
                 <Route path="/staff" element={<ProtectedRoute officialOnly><StaffDashboard /></ProtectedRoute>} />
@@ -148,7 +159,9 @@ const App: React.FC = () => {
                 <Route path="/staff/contacts/new" element={<ProtectedRoute officialOnly><ContactFormPage /></ProtectedRoute>} />
                 <Route path="/staff/contacts/edit/:id" element={<ProtectedRoute officialOnly><ContactFormPage /></ProtectedRoute>} />
                 <Route path="/staff/contacts/:id" element={<ProtectedRoute officialOnly><ContactDetailPage /></ProtectedRoute>} />
-                <Route path="/staff/audit" element={<ProtectedRoute officialOnly><PlaceholderPage title="System Audit Logs" /></ProtectedRoute>} />
+                <Route path="/staff/audit" element={<ProtectedRoute officialOnly><AuditLogsPage /></ProtectedRoute>} />
+                <Route path="/staff/speech/upload" element={<ProtectedRoute officialOnly><SpeechUploadPage /></ProtectedRoute>} />
+                <Route path="/staff/parliament/entry" element={<ProtectedRoute officialOnly><StaffParliamentEntryPage /></ProtectedRoute>} />
 
                 {/* Citizen Routes (Protected Public) */}
                 <Route path="/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />

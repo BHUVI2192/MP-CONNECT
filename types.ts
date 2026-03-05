@@ -354,3 +354,106 @@ export interface Album {
   photos: Photo[];
   createdAt: string;
 }
+
+export interface AuditLog {
+  log_id: string;
+  user_id: string | null;
+  user_role: string | null;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  table_name: string;
+  record_id: string;
+  old_data: any;
+  new_data: any;
+  ip_address: string | null;
+  created_at: string;
+}
+
+// Speech Module Types
+export type SpeechType = 'Parliament' | 'Public Address' | 'Press Conference' | 'Internal Meeting' | 'Other';
+
+export interface Speech {
+  id: string;
+  title: string;
+  type: SpeechType;
+  eventName?: string;
+  date: string;
+  location?: string;
+  occasion?: string;
+  language: string;
+  description?: string;
+  keyTopics: string[];
+  keyPoints: string[];
+  audioUrl?: string;
+  videoUrl?: string;
+  videoThumbnail?: string;
+  transcript?: string;
+  duration?: string;
+  relatedProjectIds?: string[];
+  isImportant?: boolean;
+  isPublic?: boolean;
+  createdAt: string;
+}
+
+// Parliament Module Types
+export type LetterType = 'Request' | 'Recommendation' | 'Query' | 'Complaint' | 'Follow-up';
+export type LetterStatus = 'SENT' | 'ACKNOWLEDGED' | 'REPLIED' | 'CLOSED';
+export type Priority = 'High' | 'Medium' | 'Low';
+
+export interface ParliamentLetter {
+  id: string;
+  refNumber: string;
+  subject: string;
+  ministry: string;
+  department?: string;
+  addressedTo: string;
+  type: LetterType;
+  priority: Priority;
+  sentDate: string;
+  expectedResponseDate: string;
+  summary: string;
+  constituencyIssue: string;
+  relatedProjectId?: string;
+  documentUrl?: string;
+  status: LetterStatus;
+  followUpDate?: string;
+  timeline: {
+    status: LetterStatus;
+    date: string;
+    note?: string;
+  }[];
+}
+
+export type QuestionType = 'Starred' | 'Unstarred' | 'Short Notice';
+export type QuestionStatus = 'SUBMITTED' | 'ADMITTED' | 'ANSWERED' | 'DEFERRED';
+export type SatisfactionLevel = 'Satisfactory' | 'Partial' | 'Unsatisfactory';
+
+export interface ParliamentQuestion {
+  id: string;
+  questionNumber: string;
+  type: QuestionType;
+  sessionName: string;
+  sessionDate: string;
+  subject: string;
+  fullText: string;
+  ministry: string;
+  department?: string;
+  constituencyRelevance: string;
+  relatedProjectId?: string;
+  tags: string[];
+  expectedAnswerDate: string;
+  priority: Priority;
+  status: QuestionStatus;
+  answer?: {
+    date: string;
+    answeredBy: string;
+    type: 'Oral' | 'Written' | 'Deferred';
+    text: string;
+    documentUrl?: string;
+    satisfaction: SatisfactionLevel;
+    followUpRequired: boolean;
+    followUpNotes?: string;
+    actionsTaken?: string;
+    constituencyImpact?: string;
+  };
+}
+
