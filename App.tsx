@@ -37,6 +37,7 @@ import { SpeechArchivePage } from './pages/pa/SpeechArchivePage';
 import { ParliamentLettersPage } from './pages/pa/ParliamentLettersPage';
 import { ParliamentQuestionsPage } from './pages/pa/ParliamentQuestionsPage';
 import { ParliamentTrackerPage } from './pages/pa/ParliamentTrackerPage';
+import { PaEqDashboardPage } from './pages/pa/PaEqDashboardPage';
 
 // Staff View Pages
 import { WorksEntryPage } from './pages/staff/WorksEntryPage';
@@ -51,6 +52,7 @@ import { BulkUploadPage } from './pages/staff/BulkUploadPage';
 import { AuditLogsPage } from './pages/staff/AuditLogsPage';
 import { SpeechUploadPage } from './pages/staff/SpeechUploadPage';
 import { StaffParliamentEntryPage } from './pages/staff/StaffParliamentEntryPage';
+import { StaffEqRequestPage } from './pages/staff/StaffEqRequestPage';
 
 import { ContactFormPage } from './pages/staff/ContactFormPage';
 import { UploadWorkPage } from './pages/staff/UploadWorkPage';
@@ -143,6 +145,7 @@ const App: React.FC = () => {
                 <Route path="/pa/parliament" element={<ProtectedRoute officialOnly><ParliamentTrackerPage /></ProtectedRoute>} />
                 <Route path="/pa/parliament/letters" element={<ProtectedRoute officialOnly><ParliamentLettersPage /></ProtectedRoute>} />
                 <Route path="/pa/parliament/questions" element={<ProtectedRoute officialOnly><ParliamentQuestionsPage /></ProtectedRoute>} />
+                <Route path="/pa/railway-eq" element={<ProtectedRoute officialOnly><PaEqDashboardPage /></ProtectedRoute>} />
 
                 {/* Staff Routes (Protected Official) */}
                 <Route path="/staff" element={<ProtectedRoute officialOnly><StaffDashboard /></ProtectedRoute>} />
@@ -162,6 +165,7 @@ const App: React.FC = () => {
                 <Route path="/staff/audit" element={<ProtectedRoute officialOnly><AuditLogsPage /></ProtectedRoute>} />
                 <Route path="/staff/speech/upload" element={<ProtectedRoute officialOnly><SpeechUploadPage /></ProtectedRoute>} />
                 <Route path="/staff/parliament/entry" element={<ProtectedRoute officialOnly><StaffParliamentEntryPage /></ProtectedRoute>} />
+                <Route path="/staff/railway-eq" element={<ProtectedRoute officialOnly><StaffEqRequestPage /></ProtectedRoute>} />
 
                 {/* Citizen Routes (Protected Public) */}
                 <Route path="/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />

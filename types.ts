@@ -457,3 +457,41 @@ export interface ParliamentQuestion {
   };
 }
 
+
+// Railway EQ (Emergency Quota) Types
+export type EqStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SENT';
+export type EmailStatus = 'Delivered' | 'Pending' | 'Failed';
+
+export interface EqRequest {
+  id: string;
+  applicantName: string;
+  mobile: string;
+  email: string;
+  emergencyReason: string;
+  trainNumber: string;
+  trainName: string;
+  originStation: string;
+  destinationStation: string;
+  fromStation: string;
+  toStation: string;
+  journeyDate: string;
+  travelClass: string;
+  division: string;
+  pnrNumber?: string;
+  status: EqStatus;
+  submittedBy: string;
+  submittedAt: string;
+  letterNumber?: string;
+  signedDate?: string;
+  emailStatus?: EmailStatus;
+  rejectionReason?: string;
+}
+
+export interface Train {
+  number: string;
+  name: string;
+  origin: string;
+  destination: string;
+  division: string;
+  stops: { name: string; code: string }[];
+}

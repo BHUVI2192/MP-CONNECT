@@ -21,7 +21,8 @@ import {
   Upload,
   BookOpen,
   Mic2,
-  Building2
+  Building2,
+  Train
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +51,7 @@ const navItems = {
     { label: 'Photo Gallery', icon: Camera, path: '/pa/gallery' },
     { label: 'Speech Archive', icon: Mic2, path: '/pa/speeches' },
     { label: 'Parliament Tracker', icon: Building2, path: '/pa/parliament' },
+    { label: 'Railway EQ', icon: Train, path: '/pa/railway-eq' },
   ],
   [UserRole.STAFF]: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/staff' },
@@ -63,6 +65,7 @@ const navItems = {
     { label: 'Media Gallery', icon: Camera, path: '/staff/media' },
     { label: 'Speech Upload', icon: Mic2, path: '/staff/speech/upload' },
     { label: 'Parliament Entry', icon: Building2, path: '/staff/parliament/entry' },
+    { label: 'Railway EQ Entry', icon: Train, path: '/staff/railway-eq' },
     { label: 'System Audit', icon: ShieldAlert, path: '/staff/audit' },
   ],
   [UserRole.CITIZEN]: [
