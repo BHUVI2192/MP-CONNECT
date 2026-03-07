@@ -86,13 +86,15 @@ export const Sidebar: React.FC = () => {
   const currentNav = navItems[user.role] || [];
 
   return (
-    <div className="w-64 h-screen bg-slate-900 text-white flex flex-col fixed left-0 top-0 z-50">
-      <div className="p-6 border-b border-slate-800">
-        <h1 className="text-xl font-bold tracking-tighter flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">MP</div>
-          Connect
+    <div className="w-64 h-screen bg-[#0B3D91] border-r border-[#0B3D91]/20 text-white shadow-2xl flex flex-col fixed left-0 top-0 z-50">
+      <div className="p-6 border-b border-white/10 bg-[#082b66]">
+        <h1 className="text-xl font-black tracking-tighter flex items-center gap-3">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Emblem" className="h-6 opacity-90" />
+          </div>
+          <span className="text-[#F5F7FA]">MP<span className="text-[#FF9933]"> Connect</span></span>
         </h1>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest">{user.role} Portal</p>
+        <p className="text-[10px] text-white/70 mt-3 uppercase tracking-widest font-bold">{user.role} Portal</p>
       </div>
 
       <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
@@ -100,18 +102,18 @@ export const Sidebar: React.FC = () => {
           <button
             key={item.label}
             onClick={() => navigate(item.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative group ${location.pathname === item.path ? 'text-white' : 'text-slate-400 hover:text-white'
+            className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-xl transition-all relative group ${location.pathname === item.path ? 'bg-white/10 text-white shadow-inner font-bold' : 'text-white/60 hover:bg-white/5 hover:text-white font-medium'
               }`}
           >
             {location.pathname === item.path && (
               <motion.div
                 layoutId="activeNav"
-                className="absolute inset-0 bg-white/10 rounded-lg -z-10"
+                className="absolute left-0 top-2 bottom-2 w-1.5 bg-[#FF9933] rounded-r-full"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
               />
             )}
-            <item.icon className={`w-5 h-5 ${location.pathname === item.path ? 'text-indigo-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-            <span className="font-medium">{item.label}</span>
+            <item.icon className={`w-5 h-5 ${location.pathname === item.path ? 'text-[#FF9933]' : 'text-white/40 group-hover:text-white/80'}`} />
+            <span className="tracking-wide text-sm">{item.label}</span>
           </button>
         ))}
       </nav>
