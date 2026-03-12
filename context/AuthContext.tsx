@@ -62,7 +62,7 @@ function friendlyError(message: string): string {
 async function buildUserFromSession(session: Session): Promise<User | null> {
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('id, full_name, role')
+    .select('id, full_name, role, constituency')
     .eq('id', session.user.id)
     .single();
 
@@ -70,12 +70,13 @@ async function buildUserFromSession(session: Session): Promise<User | null> {
   const meta = session.user.user_metadata;
   const role = (profile as any)?.role ?? meta?.role ?? 'CITIZEN';
   const name = (profile as any)?.full_name ?? meta?.full_name ?? session.user.email ?? 'User';
+  const constituency = (profile as any)?.constituency ?? meta?.constituency ?? 'Northeast Delhi';
 
   return {
     id: session.user.id,
     name,
     role: dbRoleToUserRole(role),
-    constituency: 'Northeast Delhi',
+    constituency,
   };
 }
 

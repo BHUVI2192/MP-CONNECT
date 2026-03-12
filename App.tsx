@@ -62,6 +62,8 @@ import { DevelopmentWorksBrowsePage } from './pages/DevelopmentWorksBrowsePage';
 import { DevelopmentWorksSearchPage } from './pages/DevelopmentWorksSearchPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { PhotoGalleryPage } from './pages/PhotoGalleryPage';
+import { SubmitComplaintPage } from './pages/citizen/SubmitComplaintPage';
+import { PublicTourSchedulePage } from './pages/citizen/PublicTourSchedulePage';
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode; officialOnly?: boolean; roles?: UserRole[] }> = ({ children, officialOnly = false, roles }) => {
@@ -186,8 +188,8 @@ const App: React.FC = () => {
 
                 {/* Citizen Routes (Protected Public) */}
                 <Route path="/citizen" element={<ProtectedRoute><CitizenDashboard /></ProtectedRoute>} />
-                <Route path="/citizen/new" element={<ProtectedRoute><PlaceholderPage title="Submit Complaint" /></ProtectedRoute>} />
-                <Route path="/citizen/schedule" element={<ProtectedRoute><PlaceholderPage title="Public Tour Schedule" /></ProtectedRoute>} />
+                <Route path="/citizen/new" element={<ProtectedRoute><SubmitComplaintPage /></ProtectedRoute>} />
+                <Route path="/citizen/schedule" element={<ProtectedRoute><PublicTourSchedulePage /></ProtectedRoute>} />
 
                 {/* Public Routes */}
                 <Route path="/development-works" element={<DevelopmentWorksSearchPage />} />
