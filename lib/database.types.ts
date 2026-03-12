@@ -17,6 +17,7 @@ export interface Database {
                     mobile: string | null
                     is_active: boolean
                     avatar_url: string | null
+                    constituency: string
                     created_at: string
                     updated_at: string
                 }
@@ -27,6 +28,7 @@ export interface Database {
                     mobile?: string | null
                     is_active?: boolean
                     avatar_url?: string | null
+                    constituency?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -37,6 +39,7 @@ export interface Database {
                     mobile?: string | null
                     is_active?: boolean
                     avatar_url?: string | null
+                    constituency?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -945,6 +948,128 @@ export interface Database {
                     old_data?: Json | null
                     new_data?: Json | null
                     ip_address?: string | null
+                    created_at?: string
+                }
+            }
+            mplads_funds: {
+                Row: {
+                    id: string
+                    year: string
+                    recommended_cr: number
+                    sanctioned_cr: number
+                    released_cr: number
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    year: string
+                    recommended_cr?: number
+                    sanctioned_cr?: number
+                    released_cr?: number
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    year?: string
+                    recommended_cr?: number
+                    sanctioned_cr?: number
+                    released_cr?: number
+                    created_at?: string
+                }
+            }
+            mplads_projects: {
+                Row: {
+                    id: string
+                    project_name: string
+                    recommended_date: string | null
+                    amount_lakhs: number
+                    status: string
+                    notes: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    project_name: string
+                    recommended_date?: string | null
+                    amount_lakhs?: number
+                    status?: string
+                    notes?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    project_name?: string
+                    recommended_date?: string | null
+                    amount_lakhs?: number
+                    status?: string
+                    notes?: string | null
+                    created_at?: string
+                }
+            }
+            media_clips: {
+                Row: {
+                    id: string
+                    title: string
+                    source: string
+                    published_at: string
+                    sentiment: 'Positive' | 'Negative' | 'Neutral'
+                    summary: string | null
+                    url: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    title: string
+                    source: string
+                    published_at?: string
+                    sentiment?: 'Positive' | 'Negative' | 'Neutral'
+                    summary?: string | null
+                    url?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    title?: string
+                    source?: string
+                    published_at?: string
+                    sentiment?: 'Positive' | 'Negative' | 'Neutral'
+                    summary?: string | null
+                    url?: string | null
+                    created_at?: string
+                }
+            }
+            greeting_logs: {
+                Row: {
+                    id: string
+                    contact_id: string | null
+                    contact_name: string
+                    occasion: string
+                    channel: string
+                    status: string
+                    greeted_year: number
+                    notes: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    contact_id?: string | null
+                    contact_name: string
+                    occasion?: string
+                    channel?: string
+                    status?: string
+                    greeted_year?: number
+                    notes?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    contact_id?: string | null
+                    contact_name?: string
+                    occasion?: string
+                    channel?: string
+                    status?: string
+                    greeted_year?: number
+                    notes?: string | null
                     created_at?: string
                 }
             }

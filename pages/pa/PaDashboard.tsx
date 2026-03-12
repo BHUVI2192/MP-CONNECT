@@ -19,10 +19,13 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMockData } from '../../context/MockDataContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const PaDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { events, complaints, letters } = useMockData();
+  const { user } = useAuth();
+  const constituencyLabel = user?.constituency ?? 'Northeast Delhi';
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEventsCount = events.filter(e => e.date === todayStr).length;
@@ -46,7 +49,7 @@ export const PaDashboard: React.FC = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tighter">PA Command Center</h2>
-          <p className="text-slate-500 font-medium">Daily operations hub for Northeast Delhi.</p>
+          <p className="text-slate-500 font-medium">Daily operations hub for {constituencyLabel}.</p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -114,7 +117,7 @@ export const PaDashboard: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Today's Schedule" subtitle="MP Rahul Kumar's Minute-by-Minute Timeline">
+          <Card title="Today's Schedule" subtitle="MP's Minute-by-Minute Timeline">
             <div className="space-y-8 mt-6">
               {events.filter(e => e.date === todayStr).slice(0, 3).map((item, i) => (
                 <div key={i} className="flex gap-6 relative group cursor-pointer" onClick={() => navigate('/pa/plan')}>
