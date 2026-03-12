@@ -1,12 +1,25 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Notification } from '../types';
+import { supabase } from '../lib/supabase';
+
+interface DbNotification {
+  notif_id: string;
+  type: string;
+  title: string;
+  body?: string;
+  is_read: boolean;
+  created_at: string;
+  metadata?: Record<string, any>;
+}
 
 interface NotificationContextType {
   notifications: Notification[];
+  dbNotifications: DbNotification[];
   unreadCount: number;
   addNotification: (notification: Omit<Notification, 'id' | 'isRead'>) => void;
   markAsRead: (id: string) => void;
+  markDbAsRead: (notifId: string) => void;
   clearAll: () => void;
   updateInternalNote: (id: string, note: string) => void;
   lastUpdatedEventId: string | null;
@@ -16,9 +29,46 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [dbNotifications, setDbNotifications] = useState<DbNotification[]>([]);
   const [lastUpdatedEventId, setLastUpdatedEventId] = useState<string | null>(null);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const localUnread = notifications.filter(n => !n.isRead).length;
+  const dbUnread = dbNotifications.filter(n => !n.is_read).length;
+  const unreadCount = localUnread + dbUnread;
+
+  // Fetch DB notifications on mount and subscribe to new ones
+  useEffect(() => {
+    const fetchAndSubscribe = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data } = await (supabase as any)
+        .from('notifications')
+        .select('notif_id, type, title, body, is_read, created_at, metadata')
+        .eq('recipient_id', userData.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (data) setDbNotifications(data as DbNotification[]);
+
+      // Realtime subscription for new notifications
+      const channel = supabase
+        .channel('notif-ctx')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_id=eq.${userData.user.id}`,
+        }, (payload) => {
+          setDbNotifications(prev => [payload.new as DbNotification, ...prev]);
+        })
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    };
+
+    fetchAndSubscribe();
+  }, []);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id' | 'isRead'>) => {
     const newNotification: Notification = {
@@ -39,6 +89,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
+  const markDbAsRead = async (notifId: string) => {
+    await (supabase as any)
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('notif_id', notifId);
+    setDbNotifications(prev =>
+      prev.map(n => n.notif_id === notifId ? { ...n, is_read: true } : n)
+    );
+  };
+
   const clearAll = () => {
     setNotifications([]);
   };
@@ -49,10 +109,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   return (
     <NotificationContext.Provider value={{ 
-      notifications, 
+      notifications,
+      dbNotifications,
       unreadCount, 
       addNotification, 
-      markAsRead, 
+      markAsRead,
+      markDbAsRead,
       clearAll, 
       updateInternalNote,
       lastUpdatedEventId

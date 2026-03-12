@@ -24,7 +24,7 @@ interface NotificationPanelProps {
 }
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
-  const { notifications, markAsRead, clearAll, updateInternalNote } = useNotifications();
+  const { notifications, dbNotifications, markAsRead, markDbAsRead, clearAll, updateInternalNote } = useNotifications();
 
   return (
     <AnimatePresence>
@@ -69,7 +69,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, on
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {notifications.length === 0 ? (
+              {dbNotifications.length === 0 && notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-200">
                     <Bell className="w-10 h-10" />
@@ -78,14 +78,39 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, on
                   <p className="text-sm text-slate-500">No new notifications from the PA at the moment.</p>
                 </div>
               ) : (
-                notifications.map((notification) => (
-                  <NotificationCard 
-                    key={notification.id} 
-                    notification={notification} 
-                    onMarkRead={() => markAsRead(notification.id)}
-                    onAddNote={(note) => updateInternalNote(notification.id, note)}
-                  />
-                ))
+                <>
+                  {/* DB (system) notifications */}
+                  {dbNotifications.map((n) => (
+                    <div
+                      key={n.notif_id}
+                      className={`p-4 rounded-2xl border transition-all ${n.is_read ? 'bg-white border-slate-100' : 'bg-indigo-50/30 border-indigo-100 shadow-sm'}`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">{n.type.replace(/_/g, ' ')}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{new Date(n.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <h4 className="font-black text-slate-900 text-sm mt-1">{n.title}</h4>
+                      {n.body && <p className="text-xs text-slate-500 mt-1">{n.body}</p>}
+                      {!n.is_read && (
+                        <button
+                          onClick={() => markDbAsRead(n.notif_id)}
+                          className="mt-2 text-[10px] font-bold text-emerald-600 flex items-center gap-1 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <Check className="w-3 h-3" /> Mark as read
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* In-memory (plan-today) notifications */}
+                  {notifications.map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      onMarkRead={() => markAsRead(notification.id)}
+                      onAddNote={(note) => updateInternalNote(notification.id, note)}
+                    />
+                  ))}
+                </>
               )}
             </div>
           </motion.div>

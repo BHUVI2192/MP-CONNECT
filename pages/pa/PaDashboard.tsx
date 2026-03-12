@@ -13,7 +13,6 @@ import {
   UserCheck,
   TrendingUp,
   MessageSquare,
-  Bell,
   ShieldCheck,
   Building2,
   Users
@@ -39,8 +38,8 @@ export const PaDashboard: React.FC = () => {
   // Grievance Dispatch Board: verified complaints, show up to 3
   const verifiedComplaints = complaints.filter(c => c.status === 'Verified').slice(0, 3);
 
-  // Approval Queue: letters in Draft or Sent status awaiting follow-up, show up to 3
-  const pendingLetters = letters.filter(l => l.status === 'Draft' || l.status === 'Sent').slice(0, 3);
+  // Approval Queue: letters in Pending or In Progress status awaiting follow-up, show up to 3
+  const pendingLetters = letters.filter(l => l.status === 'Pending' || l.status === 'In Progress').slice(0, 3);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -50,10 +49,9 @@ export const PaDashboard: React.FC = () => {
           <p className="text-slate-500 font-medium">Daily operations hub for Northeast Delhi.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-2xl border-slate-200"><Bell className="w-4 h-4 mr-2" /> Notifications</Button>
           <Button
             className="rounded-2xl shadow-lg shadow-indigo-100"
-            onClick={() => navigate('/pa/plan-today')}
+            onClick={() => navigate('/pa/plan')}
           >
             <Calendar className="w-4 h-4 mr-2" /> Plan Today
           </Button>
@@ -112,7 +110,6 @@ export const PaDashboard: React.FC = () => {
                   </Button>
                 </div>
               ))}
-              )}
               <Button variant="ghost" fullWidth className="text-slate-400 text-xs font-bold" onClick={() => navigate('/pa/complaints')}>Manage All Dispatches</Button>
             </div>
           </Card>
@@ -120,7 +117,7 @@ export const PaDashboard: React.FC = () => {
           <Card title="Today's Schedule" subtitle="MP Rahul Kumar's Minute-by-Minute Timeline">
             <div className="space-y-8 mt-6">
               {events.filter(e => e.date === todayStr).slice(0, 3).map((item, i) => (
-                <div key={i} className="flex gap-6 relative group cursor-pointer" onClick={() => navigate('/pa/plan-today')}>
+                <div key={i} className="flex gap-6 relative group cursor-pointer" onClick={() => navigate('/pa/plan')}>
                   <div className="w-20 text-right">
                     <p className="text-sm font-black text-slate-900">{item.startTime}</p>
                   </div>
@@ -144,7 +141,7 @@ export const PaDashboard: React.FC = () => {
               {todayEventsCount === 0 && (
                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                   <p className="text-sm font-bold text-slate-500">No events scheduled for today.</p>
-                  <Button variant="ghost" size="sm" className="mt-2 text-indigo-600" onClick={() => navigate('/pa/plan-today')}>Schedule Now</Button>
+                  <Button variant="ghost" size="sm" className="mt-2 text-indigo-600" onClick={() => navigate('/pa/plan')}>Schedule Now</Button>
                 </div>
               )}
             </div>

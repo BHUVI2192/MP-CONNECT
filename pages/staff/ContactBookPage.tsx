@@ -116,7 +116,9 @@ export const ContactBookPage: React.FC = () => {
 
     const handleDelete = (id: string) => {
         if (window.confirm('Are you sure you want to delete this contact?')) {
-            console.log('Deleting contact:', id);
+            contactsApi.delete(id).then(() => {
+                setAllContacts(prev => prev.filter(c => c.id !== id));
+            });
         }
     };
 

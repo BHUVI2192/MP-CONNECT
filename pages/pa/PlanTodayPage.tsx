@@ -20,6 +20,8 @@ import {
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { useMockData } from '../../context/MockDataContext';
+import { useAuth } from '../../context/AuthContext';
+import { planTodayApi } from '../../hooks/usePlanToday';
 import { PlanTodayEvent, PlanTodayAttendee } from '../../types';
 
 type PlanEventType = 'MEETING' | 'VISIT' | 'INSPECTION' | 'TOUR' | 'OTHER';
@@ -64,6 +66,7 @@ const toLocalDateStr = (d: Date) =>
 
 export const PlanTodayPage: React.FC = () => {
   const { events, addEvent, updateEvent } = useMockData();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<PlanTodayEvent | null>(null);
@@ -158,11 +161,15 @@ export const PlanTodayPage: React.FC = () => {
     await updateEvent({ ...event, status: 'Cancelled' });
   };
 
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     // Lock the UI immediately — never block on DB
     setIsFinalized(true);
     setShowFinalizeConfirm(false);
-    // Persist finalized status to DB in the background (no-throw, fire-and-forget)
+    // Mark the day as finalized in the DB so staff daybook can see it
+    if (user?.id) {
+      void planTodayApi.finalizeDay(selectedDateStr, user.id);
+    }
+    // Persist final status for each active event (fire-and-forget)
     dayEvents
       .filter(e => e.status !== 'Cancelled')
       .forEach(e => { void updateEvent({ ...e }); });

@@ -6,11 +6,16 @@ import { MessageSquare, CheckCircle, Clock, MapPin, Search, ChevronRight, X, Upl
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useMockData } from '../../context/MockDataContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const CitizenDashboard: React.FC = () => {
   const { complaints, addComplaint } = useMockData();
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Only show this citizen's own complaints
+  const myComplaints = complaints.filter(c => c.citizenName === user?.name);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -21,30 +26,25 @@ export const CitizenDashboard: React.FC = () => {
     priority: 'Medium' as 'High' | 'Medium' | 'Low'
   });
 
-  const handleFakeSubmit = () => {
+  const handleFakeSubmit = async () => {
+    if (!formData.headline) return;
     setIsSubmitting(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      const newId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      const newComplaint = {
-        id: newId,
-        citizenName: "Current Citizen", // Mock Name
-        category: formData.category || "General",
-        location: formData.location || "Unknown",
-        description: formData.description || formData.headline,
-        status: 'New' as const,
-        createdAt: new Date().toISOString().split('T')[0],
-        priority: formData.priority,
-        staffNotes: ''
-      };
-
-      addComplaint(newComplaint);
-      setIsSubmitting(false);
-      setShowForm(false);
-      setFormData({ category: '', location: '', headline: '', description: '', priority: 'Medium' }); // Reset
-    }, 1500);
+    const newId = `CMP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newComplaint = {
+      id: newId,
+      citizenName: user?.name ?? 'Citizen',
+      category: formData.category || 'General',
+      location: formData.location || 'Unknown',
+      description: formData.description || formData.headline,
+      status: 'New' as const,
+      createdAt: new Date().toISOString().split('T')[0],
+      priority: formData.priority,
+      staffNotes: ''
+    };
+    await addComplaint(newComplaint);
+    setIsSubmitting(false);
+    setShowForm(false);
+    setFormData({ category: '', location: '', headline: '', description: '', priority: 'Medium' });
   };
 
   return (
@@ -64,11 +64,11 @@ export const CitizenDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg">
           <p className="text-xs font-bold text-indigo-100 uppercase tracking-widest">Active Complaints</p>
-          <h4 className="text-3xl font-black mt-2">{complaints.filter(c => c.status !== 'Resolved' && c.status !== 'Rejected').length}</h4>
+          <h4 className="text-3xl font-black mt-2">{myComplaints.filter(c => c.status !== 'Resolved' && c.status !== 'Rejected').length}</h4>
         </div>
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Resolved WTD</p>
-          <h4 className="text-3xl font-black text-slate-900 mt-2">{complaints.filter(c => c.status === 'Resolved').length}</h4>
+          <h4 className="text-3xl font-black text-slate-900 mt-2">{myComplaints.filter(c => c.status === 'Resolved').length}</h4>
         </div>
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Avg. Resolution</p>
@@ -80,7 +80,12 @@ export const CitizenDashboard: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <h3 className="text-xl font-bold text-slate-900">My Recent Trackers</h3>
           <div className="space-y-4">
-            {complaints.map((item) => (
+            {myComplaints.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p className="text-sm font-bold text-slate-500">No complaints submitted yet.</p>
+                <Button variant="ghost" size="sm" className="mt-2 text-indigo-600" onClick={() => setShowForm(true)}>Raise your first complaint</Button>
+              </div>
+            ) : myComplaints.map((item) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 10 }}

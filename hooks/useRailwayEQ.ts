@@ -41,6 +41,12 @@ export const railwayEQApi = {
         })
     },
 
+    async sendEmail(eqId: string) {
+        return supabase.functions.invoke('send-eq-email', {
+            body: { eq_request_id: eqId }
+        })
+    },
+
     async getQuotaStatus() {
         return (supabase as any).rpc('get_eq_quota_status')
     },

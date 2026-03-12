@@ -53,6 +53,10 @@ export const PaEqDashboardPage: React.FC = () => {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [approvedLetterNumber, setApprovedLetterNumber] = useState('');
+  const [approvedLetterPath, setApprovedLetterPath] = useState('');
 
   const filteredRequests = useMemo(() => {
     if (activeTab === 'ALL') return eqRequests;
@@ -69,19 +73,51 @@ export const PaEqDashboardPage: React.FC = () => {
     setShowSignatureModal(true);
   };
 
-  const handleConfirmApproval = () => {
-    setShowSignatureModal(false);
-    setShowSuccessScreen(true);
+  const handleConfirmApproval = async () => {
+    if (!selectedRequest) return;
+    setIsApproving(true);
+    try {
+      // Call sign-eq-letter edge function
+      const { data: signResult } = await railwayEQApi.approveAndSign(selectedRequest.id, '');
+      // Send signed letter email to DRM
+      await railwayEQApi.sendEmail(selectedRequest.id);
+      // Update local state
+      setEqRequests(prev =>
+        prev.map(r => r.id === selectedRequest.id ? { ...r, status: 'APPROVED' as any } : r)
+      );
+      setApprovedLetterNumber(signResult?.letter_number || selectedRequest.letterNumber || selectedRequest.id.slice(0, 8).toUpperCase());
+      setApprovedLetterPath(signResult?.letter_path || selectedRequest.letterPath || '');
+      setShowSignatureModal(false);
+      setShowSuccessScreen(true);
+    } catch (err) {
+      console.error('Approval failed:', err);
+      alert('Failed to approve the EQ request. Please try again.');
+    } finally {
+      setIsApproving(false);
+    }
   };
 
   const handleReject = () => {
     setShowRejectModal(true);
   };
 
-  const handleConfirmRejection = () => {
-    setShowRejectModal(false);
-    setSelectedRequest(null);
-    // In a real app, we would update the status here
+  const handleConfirmRejection = async () => {
+    if (!selectedRequest || !rejectionReason.trim()) return;
+    setIsRejecting(true);
+    try {
+      await railwayEQApi.rejectRequest(selectedRequest.id, rejectionReason);
+      setEqRequests(prev =>
+        prev.map(r => r.id === selectedRequest.id ? { ...r, status: 'REJECTED' as any } : r)
+      );
+      setShowRejectModal(false);
+      setRejectionReason('');
+      setSelectedRequest(null);
+    } catch (err) {
+      console.error('Rejection failed:', err);
+      alert('Failed to reject the EQ request. Please try again.');
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   if (showSuccessScreen) {
@@ -102,15 +138,21 @@ export const PaEqDashboardPage: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Letter Number</p>
-              <p className="text-xl font-black text-slate-900">MP/NED/EQ/2024/102</p>
+              <p className="text-xl font-black text-slate-900">{approvedLetterNumber}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Emailed To</p>
-              <p className="text-sm font-bold text-slate-700">drm.office.delhi@indianrailways.gov.in</p>
+              <p className="text-sm font-bold text-slate-700">drm.delhi@rb.railnet.gov.in</p>
             </div>
           </div>
           <div className="pt-8 border-t border-slate-50 flex gap-4">
-            <Button fullWidth size="lg" className="rounded-2xl bg-slate-900 hover:bg-slate-800 text-white">
+            <Button
+              fullWidth
+              size="lg"
+              className="rounded-2xl bg-slate-900 hover:bg-slate-800 text-white"
+              onClick={() => approvedLetterPath && window.open(approvedLetterPath, '_blank')}
+              disabled={!approvedLetterPath}
+            >
               <Download className="w-5 h-5 mr-2" /> Download Signed Letter
             </Button>
             <Button fullWidth variant="outline" size="lg" className="rounded-2xl" onClick={() => { setShowSuccessScreen(false); setSelectedRequest(null); }}>
@@ -382,8 +424,8 @@ export const PaEqDashboardPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button fullWidth size="lg" className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleConfirmApproval}>
-                    Confirm & Approve
+                  <Button fullWidth size="lg" className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleConfirmApproval} disabled={isApproving}>
+                    {isApproving ? 'Processing...' : 'Confirm & Approve'}
                   </Button>
                 </div>
               </motion.div>
@@ -425,7 +467,7 @@ export const PaEqDashboardPage: React.FC = () => {
                   />
                   <div className="flex gap-3">
                     <Button fullWidth variant="outline" className="rounded-xl" onClick={() => setShowRejectModal(false)}>Cancel</Button>
-                    <Button fullWidth className="bg-red-600 hover:bg-red-700 text-white rounded-xl" onClick={handleConfirmRejection}>Confirm Rejection</Button>
+                    <Button fullWidth className="bg-red-600 hover:bg-red-700 text-white rounded-xl" onClick={handleConfirmRejection} disabled={isRejecting || !rejectionReason.trim()}>{isRejecting ? 'Rejecting...' : 'Confirm Rejection'}</Button>
                   </div>
                 </div>
               </motion.div>
