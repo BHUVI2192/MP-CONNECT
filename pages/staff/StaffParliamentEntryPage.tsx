@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -69,7 +69,7 @@ export const StaffParliamentEntryPage: React.FC = () => {
 
   const handleSubmitToTracker = async () => {
     if (entryType === 'letter') {
-      const { error } = await (supabase as any).from('parliament_letters').insert({
+      const { error } = await supabase.from('parliament_letters').insert({
         subject: formData.subject,
         recipient: formData.addressedTo || formData.ministry,
         ref_number: formData.refNumber || null,
@@ -87,7 +87,7 @@ export const StaffParliamentEntryPage: React.FC = () => {
       });
       if (error) { console.error('[DB] addLetter:', error.message, error); alert('Save failed: ' + error.message); return; }
     } else {
-      const { error } = await (supabase as any).from('parliament_questions').insert({
+      const { error } = await supabase.from('parliament_questions').insert({
         question_number: formData.questionNumber || 'TBD',
         session_name: formData.sessionName,
         session_date: formData.sessionDate || null,

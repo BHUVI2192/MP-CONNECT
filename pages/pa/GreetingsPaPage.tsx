@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -106,8 +106,8 @@ export const GreetingsPaPage: React.FC = () => {
     const [{ data: bdContacts }, { data: anniContacts }, { data: logs }, { data: allCts }] = await Promise.all([
       contactsApi.getTodaysBirthdays(),
       contactsApi.getTodaysAnniversaries(),
-      (supabase as any).from('greeting_logs').select('*').eq('greeted_year', currentYear).order('created_at', { ascending: false }).limit(100),
-      (supabase as any).from('contacts').select('contact_id, full_name, designation, organization, mobile, email, birthday, anniversary, location_village, location_taluk, zilla, state').is('deleted_at', null).limit(500),
+      supabase.from('greeting_logs').select('*').eq('greeted_year', currentYear).order('created_at', { ascending: false }).limit(100),
+      supabase.from('contacts').select('contact_id, full_name, designation, organization, mobile, email, birthday, anniversary, location_village, location_taluk, zilla, state').is('deleted_at', null).limit(500),
     ]);
 
     const greetedIds = new Set<string>((logs ?? []).map((l: any) => l.contact_id).filter(Boolean));
@@ -137,7 +137,7 @@ export const GreetingsPaPage: React.FC = () => {
 
   const saveGreetingLog = async (contactId: string, contactName: string, occasion: string, channel: string) => {
     const currentYear = new Date().getFullYear();
-    await (supabase as any).from('greeting_logs').insert({
+    await supabase.from('greeting_logs').insert({
       contact_id: contactId,
       contact_name: contactName,
       occasion,
@@ -165,7 +165,7 @@ export const GreetingsPaPage: React.FC = () => {
       const cid = selectedContacts[i];
       const contact = allGreetingContacts.find(c => c.id === cid);
       if (contact) {
-        await (supabase as any).from('greeting_logs').insert({
+        await supabase.from('greeting_logs').insert({
           contact_id: cid,
           contact_name: contact.name,
           occasion: contact.event,
@@ -214,7 +214,7 @@ export const GreetingsPaPage: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 font-bold truncate">{contact.designation} â€¢ {contact.organization}</p>
+          <p className="text-xs text-slate-500 font-bold truncate">{contact.designation} • {contact.organization}</p>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> {contact.location}
           </p>

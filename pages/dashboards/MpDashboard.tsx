@@ -28,7 +28,7 @@ export const MpDashboard: React.FC = () => {
   const [funds, setFunds] = useState<FundRow[]>([]);
 
   useEffect(() => {
-    (supabase as any)
+    supabase
       .from('mplads_funds')
       .select('*')
       .then(({ data }: { data: FundRow[] | null }) => {

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -165,7 +165,7 @@ export const SpeechUploadPage: React.FC = () => {
         uploadSpeechMedia(formData.videoFile, 'video'),
       ]);
 
-      const { error } = await (supabase as any).from('speech_storage').insert({
+      const { error } = await supabase.from('speech_storage').insert({
         title: formData.title,
         type: formData.type,
         speech_date: formData.date,

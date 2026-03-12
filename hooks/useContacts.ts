@@ -1,9 +1,9 @@
-﻿// hooks/useContacts.ts
+// hooks/useContacts.ts
 import { supabase } from '@/lib/supabase';
 
 export const contactsApi = {
     async list(filters: Record<string, any> = {}) {
-        let q = (supabase as any).from('contacts').select('*').is('deleted_at', null);
+        let q = supabase.from('contacts').select('*').is('deleted_at', null);
 
         if (filters.category) q = q.eq('category', filters.category);
         if (filters.state) q = q.eq('state', filters.state);
@@ -17,7 +17,7 @@ export const contactsApi = {
     },
 
     async search(query: string, maxResults = 100) {
-        return (supabase as any)
+        return supabase
             .from('contacts')
             .select('*')
             .textSearch('fts', query, { type: 'plain', config: 'english' })
@@ -26,7 +26,7 @@ export const contactsApi = {
     },
 
     async getById(contactId: string) {
-        return (supabase as any)
+        return supabase
             .from('contacts')
             .select('*')
             .eq('contact_id', contactId)
@@ -35,11 +35,11 @@ export const contactsApi = {
     },
 
     async create(contactData: Record<string, any>) {
-        return (supabase as any).from('contacts').insert(contactData).select().single();
+        return supabase.from('contacts').insert(contactData).select().single();
     },
 
     async update(contactId: string, updates: Record<string, any>) {
-        return (supabase as any)
+        return supabase
             .from('contacts')
             .update(updates)
             .eq('contact_id', contactId)
@@ -49,7 +49,7 @@ export const contactsApi = {
 
     async delete(contactId: string) {
         // Soft delete
-        return (supabase as any)
+        return supabase
             .from('contacts')
             .update({ deleted_at: new Date().toISOString() })
             .eq('contact_id', contactId);
@@ -64,7 +64,7 @@ export const contactsApi = {
     },
 
     async bulkUpload(contacts: Record<string, any>[]) {
-        return (supabase as any).from('contacts').insert(contacts).select();
+        return supabase.from('contacts').insert(contacts).select();
     }
 };
 

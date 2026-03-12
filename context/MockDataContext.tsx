@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Letter, Complaint, Project, TourProgram, PlanTodayEvent, Contact } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -53,7 +53,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch complaints from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('complaints').select('*').order('created_at', { ascending: false })
+        supabase.from('complaints').select('*').order('created_at', { ascending: false })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     setComplaints(data.map((r: any) => ({
@@ -75,7 +75,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch tours from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('tour_programs').select('*').order('start_date', { ascending: false })
+        supabase.from('tour_programs').select('*').order('start_date', { ascending: false })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     setTours(data.map((r: any) => ({
@@ -99,7 +99,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch letters from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('letters').select('*').order('created_at', { ascending: false })
+        supabase.from('letters').select('*').order('created_at', { ascending: false })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     setLetters(data.map((r: any) => ({
@@ -122,7 +122,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch contacts from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('contacts').select('*').is('deleted_at', null).order('full_name', { ascending: true })
+        supabase.from('contacts').select('*').is('deleted_at', null).order('full_name', { ascending: true })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     setContacts(data.map((r: any) => ({
@@ -147,7 +147,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch plan_today_events from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('plan_today_events').select('*').order('scheduled_time', { ascending: true })
+        supabase.from('plan_today_events').select('*').order('scheduled_time', { ascending: true })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     const statusMap: Record<string, PlanTodayEvent['status']> = {
@@ -174,7 +174,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Fetch development_works from Supabase on mount
     useEffect(() => {
-        (supabase as any).from('development_works').select('*').is('deleted_at', null).order('created_at', { ascending: false })
+        supabase.from('development_works').select('*').is('deleted_at', null).order('created_at', { ascending: false })
             .then(({ data }) => {
                 if (data && data.length > 0) {
                     const statusMap: Record<string, Project['status']> = {
@@ -200,10 +200,10 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
     }, []);
 
-    // â”€â”€ Complaints actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Complaints actions ────────────────────────────────────
     const addComplaint = async (complaint: Complaint) => {
         setComplaints(prev => [complaint, ...prev]); // optimistic
-        const { data, error } = await (supabase as any).from('complaints').insert({
+        const { data, error } = await supabase.from('complaints').insert({
             citizen_name: complaint.citizenName,
             category: complaint.category,
             location: complaint.location,
@@ -217,17 +217,17 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const updateComplaintStatus = async (id: string, status: Complaint['status'], remarks?: string) => {
         setComplaints(prev => prev.map(c => c.id === id ? { ...c, status, staffNotes: remarks ?? c.staffNotes } : c)); // optimistic
-        const { error } = await (supabase as any).from('complaints').update({
+        const { error } = await supabase.from('complaints').update({
             status,
             ...(remarks ? { staff_notes: remarks } : {}),
         }).eq('id', id);
         if (error) console.error('[DB] updateComplaintStatus:', error.message, error);
     };
 
-    // â”€â”€ Letters actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Letters actions ───────────────────────────────────────
     const addLetter = async (letter: Letter) => {
         setLetters(prev => [letter, ...prev]); // optimistic
-        const { data, error } = await (supabase as any).from('letters').insert({
+        const { data, error } = await supabase.from('letters').insert({
             type: letter.type,
             department: letter.department,
             title: letter.title,
@@ -242,14 +242,14 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const updateLetterStatus = async (id: string, status: Letter['status']) => {
         setLetters(prev => prev.map(l => l.id === id ? { ...l, status } : l)); // optimistic
-        const { error } = await (supabase as any).from('letters').update({ status }).eq('id', id);
+        const { error } = await supabase.from('letters').update({ status }).eq('id', id);
         if (error) console.error('[DB] updateLetterStatus:', error.message, error);
     };
 
-    // â”€â”€ Tours actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Tours actions ─────────────────────────────────────────
     const addTour = async (tour: TourProgram) => {
         setTours(prev => [tour, ...prev]); // optimistic
-        const { data, error } = await (supabase as any).from('tour_programs').insert({
+        const { data, error } = await supabase.from('tour_programs').insert({
             title: tour.title,
             type: tour.type,
             start_date: tour.startDate,
@@ -268,7 +268,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const updateTour = async (tour: TourProgram) => {
         setTours(prev => prev.map(t => t.id === tour.id ? tour : t)); // optimistic
-        const { error } = await (supabase as any).from('tour_programs').update({
+        const { error } = await supabase.from('tour_programs').update({
             title: tour.title,
             type: tour.type,
             start_date: tour.startDate,
@@ -283,11 +283,11 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (error) console.error('[DB] updateTour:', error.message, error);
     };
 
-    // â”€â”€ Events actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Events actions ────────────────────────────────────────
     const addEvent = async (event: PlanTodayEvent) => {
         setEvents(prev => [event, ...prev]); // optimistic
         const { data: { user } } = await supabase.auth.getUser();
-        const { data, error } = await (supabase as any).from('plan_today_events').insert({
+        const { data, error } = await supabase.from('plan_today_events').insert({
             event_title: event.title,   // original NOT NULL column
             title: event.title,
             type: event.type,
@@ -310,9 +310,9 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             Scheduled: 'SCHEDULED', Completed: 'COMPLETED',
             Cancelled: 'CANCELLED', Visited: 'VISITED',
         };
-        // Skip DB update if the ID is a temp ID (not a real UUID) â€” table not ready yet
+        // Skip DB update if the ID is a temp ID (not a real UUID) — table not ready yet
         if (/^e-\d+$/.test(event.id)) return;
-        const { error } = await (supabase as any).from('plan_today_events').update({
+        const { error } = await supabase.from('plan_today_events').update({
             title: event.title,
             scheduled_date: event.date,
             scheduled_time: event.startTime,
@@ -321,13 +321,13 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (error) console.error('[DB] updateEvent:', error.message, error);
     };
 
-    // â”€â”€ Works actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Works actions ─────────────────────────────────────────
     const addWork = async (work: Project) => {
         setWorks(prev => [work, ...prev]); // optimistic
         const statusMap: Record<string, string> = {
             Planned: 'PROPOSED', Ongoing: 'ONGOING', Completed: 'COMPLETED', 'On Hold': 'ON_HOLD',
         };
-        const { data, error } = await (supabase as any).from('development_works').insert({
+        const { data, error } = await supabase.from('development_works').insert({
             work_title: work.name,
             sector: work.category,
             status: statusMap[work.status] ?? 'PLANNED',
@@ -348,7 +348,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         const statusMap: Record<string, string> = {
             Planned: 'PROPOSED', Ongoing: 'ONGOING', Completed: 'COMPLETED', 'On Hold': 'ON_HOLD',
         };
-        const { error } = await (supabase as any).from('development_works').update({
+        const { error } = await supabase.from('development_works').update({
             work_title: work.name,
             sector: work.category,
             status: statusMap[work.status] ?? 'PLANNED',
@@ -357,10 +357,10 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (error) console.error('[DB] updateWork:', error.message, error);
     };
 
-    // â”€â”€ Contacts actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Contacts actions ──────────────────────────────────────
     const addContact = async (contact: Contact) => {
         setContacts(prev => [contact, ...prev]); // optimistic
-        const { data, error } = await (supabase as any).from('contacts').insert({
+        const { data, error } = await supabase.from('contacts').insert({
             full_name: contact.name,
             designation: contact.designation,
             organization: contact.organization,
@@ -379,7 +379,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const updateContact = async (contact: Contact) => {
         setContacts(prev => prev.map(c => c.id === contact.id ? contact : c)); // optimistic
-        const { error } = await (supabase as any).from('contacts').update({
+        const { error } = await supabase.from('contacts').update({
             full_name: contact.name,
             designation: contact.designation,
             organization: contact.organization,

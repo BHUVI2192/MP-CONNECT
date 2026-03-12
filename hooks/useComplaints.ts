@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface Complaint {
@@ -23,7 +23,7 @@ export function useComplaints() {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any).from('complaints')
+    const { data, error } = await supabase.from('complaints')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) setError(error.message);
@@ -40,7 +40,7 @@ export function useComplaints() {
   ) => {
     const update: Partial<Complaint> = { status };
     if (notes) update.staff_notes = notes;
-    const { error } = await (supabase as any).from('complaints')
+    const { error } = await supabase.from('complaints')
       .update(update)
       .eq('id', id);
     if (!error) setComplaints(prev => prev.map(c => c.id === id ? { ...c, ...update } : c));
@@ -48,7 +48,7 @@ export function useComplaints() {
   }, []);
 
   const addComplaint = useCallback(async (complaint: Omit<Complaint, 'id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await (supabase as any).from('complaints')
+    const { data, error } = await supabase.from('complaints')
       .insert(complaint)
       .select()
       .single();

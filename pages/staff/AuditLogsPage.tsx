@@ -33,7 +33,7 @@ export const AuditLogsPage: React.FC = () => {
 
     const loadLogs = async () => {
         setLoading(true);
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('audit_logs')
             .select('*')
             .order('created_at', { ascending: false })

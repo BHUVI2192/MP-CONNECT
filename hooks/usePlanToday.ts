@@ -1,9 +1,9 @@
-﻿// hooks/usePlanToday.ts
+// hooks/usePlanToday.ts
 import { supabase } from '@/lib/supabase'
 
 export const planTodayApi = {
     async getEvents(date: string, paId: string) {
-        return (supabase as any).from('plan_today_events')
+        return supabase.from('plan_today_events')
             .select('*')
             .eq('scheduled_date', date)
             .eq('pa_id', paId)
@@ -11,11 +11,11 @@ export const planTodayApi = {
     },
 
     async createEvent(payload: Record<string, any>) {
-        return (supabase as any).from('plan_today_events').insert(payload).select().single()
+        return supabase.from('plan_today_events').insert(payload).select().single()
     },
 
     async updateEvent(eventId: string, payload: Record<string, any>) {
-        return (supabase as any).from('plan_today_events')
+        return supabase.from('plan_today_events')
             .update(payload)
             .eq('event_id', eventId)
             .select()
@@ -30,12 +30,12 @@ export const planTodayApi = {
         const status = attended ? 'VISITED' : 'CANCELLED'
 
         // Resolve office staff for notification
-        const { data: staff } = await (supabase as any).from('profiles').select('id').eq('role', 'STAFF')
+        const { data: staff } = await supabase.from('profiles').select('id').eq('role', 'STAFF')
 
         if (staff && staff.length > 0) {
             // Create notifications for each staff member
             await Promise.all(staff.map(m =>
-                (supabase as any).from('notifications').insert({
+                supabase.from('notifications').insert({
                     recipient_id: m.id,
                     type: 'FINAL_STATUS',
                     title: `Event marked as ${status}`,
@@ -45,7 +45,7 @@ export const planTodayApi = {
             ))
         }
 
-        return (supabase as any).from('plan_today_events').update({
+        return supabase.from('plan_today_events').update({
             is_attended: attended,
             status,
             final_notes: finalNotes,
@@ -57,7 +57,7 @@ export const planTodayApi = {
         const path = `voice-notes/${eventId}/${Date.now()}.mp3`
         await supabase.storage.from('daybook-audio').upload(path, audioBlob)
 
-        await (supabase as any).from('plan_today_events')
+        await supabase.from('plan_today_events')
             .update({ voice_note_url: path })
             .eq('event_id', eventId)
 

@@ -33,21 +33,21 @@ export const LiveLocationPage: React.FC = () => {
     setLoading(true);
     const [{ count: resolved }, { count: active }, { data: completed }, { data: ongoing }] =
       await Promise.all([
-        (supabase as any)
+        supabase
           .from('complaints')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'Resolved'),
-        (supabase as any)
+        supabase
           .from('complaints')
           .select('*', { count: 'exact', head: true })
           .in('status', ['New', 'In Progress', 'Verified', 'Dispatched']),
-        (supabase as any)
+        supabase
           .from('development_works')
           .select('work_title')
           .eq('status', 'COMPLETED')
           .order('updated_at', { ascending: false })
           .limit(4),
-        (supabase as any)
+        supabase
           .from('development_works')
           .select('work_title, progress_pct')
           .eq('status', 'ONGOING')

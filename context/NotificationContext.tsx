@@ -42,7 +42,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
 
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('notifications')
         .select('notif_id, type, title, body, is_read, created_at, metadata')
         .eq('recipient_id', userData.user.id)
@@ -90,7 +90,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const markDbAsRead = async (notifId: string) => {
-    await (supabase as any)
+    await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('notif_id', notifId);

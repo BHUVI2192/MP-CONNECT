@@ -1,9 +1,9 @@
-﻿// hooks/useRailwayEQ.ts
+// hooks/useRailwayEQ.ts
 import { supabase } from '@/lib/supabase'
 
 export const railwayEQApi = {
     async lookupTrain(trainNumber: string) {
-        return (supabase as any).from('train_master')
+        return supabase.from('train_master')
             .select('*').eq('train_number', trainNumber).single()
     },
 
@@ -13,7 +13,7 @@ export const railwayEQApi = {
             .rpc('generate_eq_letter_number', { constituency: 'SMG' })
 
         // 2. Insert request
-        const { data: eq, error } = await (supabase as any).from('railway_eq_requests')
+        const { data: eq, error } = await supabase.from('railway_eq_requests')
             .insert({
                 ...payload,
                 letter_number: letterNum,
@@ -33,7 +33,7 @@ export const railwayEQApi = {
     },
 
     async approveAndSign(eqId: string, signatureBase64: string) {
-        return (supabase as any).functions.invoke('sign-eq-letter', {
+        return supabase.functions.invoke('sign-eq-letter', {
             body: {
                 eq_request_id: eqId,
                 signature_base64: signatureBase64
@@ -52,20 +52,20 @@ export const railwayEQApi = {
     },
 
     async rejectRequest(eqId: string, reason: string) {
-        return (supabase as any).from('railway_eq_requests').update({
+        return supabase.from('railway_eq_requests').update({
             status: 'REJECTED',
             rejection_reason: reason
         }).eq('eq_request_id', eqId)
     },
 
     async getRequests(filters: Record<string, any> = {}) {
-        let q = (supabase as any).from('railway_eq_requests').select('*')
+        let q = supabase.from('railway_eq_requests').select('*')
         if (filters.status) q = q.eq('status', filters.status)
         return q.order('created_at', { ascending: false })
     },
 
     async getRequestById(eqId: string) {
-        return (supabase as any).from('railway_eq_requests')
+        return supabase.from('railway_eq_requests')
             .select('*')
             .eq('eq_request_id', eqId)
             .single()

@@ -33,7 +33,7 @@ export const PublicTourSchedulePage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('tour_programs')
         .select('id, title, type, start_date, start_time, duration, location_name, location_address, status, participants')
         .gte('start_date', today)

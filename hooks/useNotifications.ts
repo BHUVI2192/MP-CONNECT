@@ -41,7 +41,7 @@ export function useNotifications() {
     }, []);
 
     const markAsRead = useCallback(async (notifId: string) => {
-        await (supabase as any)
+        await supabase
             .from('notifications')
             .update({ is_read: true })
             .eq('notif_id', notifId);
@@ -56,7 +56,7 @@ export function useNotifications() {
         const { data: user } = await supabase.auth.getUser();
         if (!user.user) return;
 
-        await (supabase as any)
+        await supabase
             .from('notifications')
             .update({ is_read: true })
             .eq('recipient_id', user.user.id)

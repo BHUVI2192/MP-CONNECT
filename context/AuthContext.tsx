@@ -60,7 +60,7 @@ function friendlyError(message: string): string {
 }
 
 async function buildUserFromSession(session: Session): Promise<User | null> {
-  const { data: profile } = await (supabase as any)
+  const { data: profile } = await supabase
     .from('profiles')
     .select('id, full_name, role, constituency')
     .eq('id', session.user.id)
@@ -145,7 +145,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Fire-and-forget upsert — the DB trigger usually creates this first;
       // upsert with ignoreDuplicates avoids 409 conflicts.
-      (supabase as any).from('profiles').upsert({
+      supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: name,
         role: dbRole,

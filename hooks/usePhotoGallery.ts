@@ -1,9 +1,9 @@
-﻿// hooks/usePhotoGallery.ts
+// hooks/usePhotoGallery.ts
 import { supabase } from '@/lib/supabase'
 
 export const photoGalleryApi = {
     async listAlbums(publicOnly = false) {
-        let q = (supabase as any).from('photo_gallery_albums')
+        let q = supabase.from('photo_gallery_albums')
             .select('*, photo_gallery_photos(photo_id, storage_path, display_order)')
             .order('event_date', { ascending: false })
 
@@ -13,7 +13,7 @@ export const photoGalleryApi = {
     },
 
     async createAlbum(payload: Record<string, any>) {
-        return (supabase as any)
+        return supabase
             .from('photo_gallery_albums')
             .insert(payload)
             .select()
@@ -21,7 +21,7 @@ export const photoGalleryApi = {
     },
 
     async updateAlbum(galleryId: string, updates: Record<string, any>) {
-        return (supabase as any)
+        return supabase
             .from('photo_gallery_albums')
             .update(updates)
             .eq('gallery_id', galleryId)
@@ -33,7 +33,7 @@ export const photoGalleryApi = {
         const path = `gallery/${galleryId}/${Date.now()}_${file.name}`
         await supabase.storage.from('photo-gallery').upload(path, file)
 
-        return (supabase as any).from('photo_gallery_photos').insert({
+        return supabase.from('photo_gallery_photos').insert({
             gallery_id: galleryId,
             storage_path: path,
             file_name: file.name,
@@ -46,7 +46,7 @@ export const photoGalleryApi = {
             await supabase.storage.from('photo-gallery').remove([storagePath])
         }
 
-        return (supabase as any)
+        return supabase
             .from('photo_gallery_photos')
             .delete()
             .eq('photo_id', photoId)

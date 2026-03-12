@@ -1,4 +1,4 @@
-﻿// hooks/useDevelopmentWorks.ts
+// hooks/useDevelopmentWorks.ts
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 
@@ -8,7 +8,7 @@ type DevelopmentWorkUpdate = Database['public']['Tables']['development_works']['
 
 export const devWorksApi = {
     async list(filters: Record<string, any> = {}) {
-        let q = (supabase as any).from('development_works').select('*, development_work_media(*)')
+        let q = supabase.from('development_works').select('*, development_work_media(*)')
 
         if (filters.sector) q = q.eq('sector', filters.sector)
         if (filters.zilla) q = q.eq('zilla', filters.zilla)
@@ -23,7 +23,7 @@ export const devWorksApi = {
     },
 
     async getById(workId: string) {
-        return (supabase as any)
+        return supabase
             .from('development_works')
             .select('*, development_work_media(*), profiles:created_by(full_name, email)')
             .eq('work_id', workId)
@@ -32,14 +32,14 @@ export const devWorksApi = {
     },
 
     async search(query: string) {
-        return (supabase as any).from('development_works')
+        return supabase.from('development_works')
             .select('*, development_work_media(*)')
             .textSearch('fts', query, { type: 'plain', config: 'english' })
             .is('deleted_at', null)
     },
 
     async create(work: DevelopmentWorkInsert) {
-        return (supabase as any)
+        return supabase
             .from('development_works')
             .insert(work)
             .select()
@@ -47,7 +47,7 @@ export const devWorksApi = {
     },
 
     async update(workId: string, updates: DevelopmentWorkUpdate) {
-        return (supabase as any)
+        return supabase
             .from('development_works')
             .update(updates)
             .eq('work_id', workId)
@@ -56,7 +56,7 @@ export const devWorksApi = {
     },
 
     async delete(workId: string) {
-        return (supabase as any)
+        return supabase
             .from('development_works')
             .update({ deleted_at: new Date().toISOString() })
             .eq('work_id', workId)
@@ -69,7 +69,7 @@ export const devWorksApi = {
         
         if (uploadError) throw uploadError
 
-        return (supabase as any).from('development_work_media').insert({
+        return supabase.from('development_work_media').insert({
             work_id: workId,
             media_type: mediaType,
             storage_path: path,
