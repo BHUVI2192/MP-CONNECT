@@ -23,12 +23,24 @@ import { useMockData } from '../../context/MockDataContext';
 
 export const PaDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { events, complaints } = useMockData();
+  const { events, complaints, letters } = useMockData();
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEventsCount = events.filter(e => e.date === todayStr).length;
   const verifiedComplaintsCount = complaints.filter(c => c.status === 'Verified').length;
   const awaitingActionCount = complaints.filter(c => c.status === 'New').length;
+
+  // Resolved this week
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const resolvedWTD = complaints.filter(c => c.status === 'Resolved' && c.createdAt >= weekStartStr).length;
+
+  // Grievance Dispatch Board: verified complaints, show up to 3
+  const verifiedComplaints = complaints.filter(c => c.status === 'Verified').slice(0, 3);
+
+  // Approval Queue: letters in Draft or Sent status awaiting follow-up, show up to 3
+  const pendingLetters = letters.filter(l => l.status === 'Draft' || l.status === 'Sent').slice(0, 3);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -54,7 +66,7 @@ export const PaDashboard: React.FC = () => {
           { label: 'Awaiting Action', val: awaitingActionCount.toString().padStart(2, '0'), icon: ShieldCheck, color: 'text-indigo-600', bg: 'bg-indigo-50' },
           { label: 'Today\'s Events', val: todayEventsCount.toString().padStart(2, '0'), icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50' },
           { label: 'Unassigned (Verified)', val: verifiedComplaintsCount.toString().padStart(2, '0'), icon: MessageSquare, color: 'text-orange-600', bg: 'bg-orange-50' },
-          { label: 'Resolved (WTD)', val: '14', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Resolved (WTD)', val: resolvedWTD.toString().padStart(2, '0'), icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
         ].map((stat, i) => (
           <Card key={i} className="border-slate-200">
             <div className="flex justify-between items-start">
@@ -76,10 +88,11 @@ export const PaDashboard: React.FC = () => {
           {/* New Verified Complaints Queue for PA */}
           <Card title="Grievance Dispatch Board" subtitle="Verified complaints from office staff awaiting department assignment">
             <div className="space-y-4 mt-6">
-              {[
-                { id: 'CMP-8821', citizen: 'Aman Varma', cat: 'Water Supply', urgency: 'High' },
-                { id: 'CMP-9122', citizen: 'Suresh Raina', cat: 'Electricity', urgency: 'Med' }
-              ].map((comp, i) => (
+              {verifiedComplaints.length === 0 ? (
+                <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-sm font-bold text-slate-500">No verified complaints pending dispatch.</p>
+                </div>
+              ) : verifiedComplaints.map((comp, i) => (
                 <div key={i} className="group p-5 bg-white border border-slate-100 rounded-[2rem] hover:border-indigo-200 transition-all flex flex-col md:flex-row justify-between items-center gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
@@ -87,11 +100,11 @@ export const PaDashboard: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-black text-slate-400 uppercase">{comp.id}</p>
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase ${comp.urgency === 'High' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'}`}>{comp.urgency}</span>
+                        <p className="text-[10px] font-black text-slate-400 uppercase">{comp.id.slice(0, 8).toUpperCase()}</p>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase ${comp.priority === 'High' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'}`}>{comp.priority ?? 'Med'}</span>
                       </div>
-                      <p className="font-black text-slate-900 leading-tight mt-0.5">{comp.citizen}</p>
-                      <p className="text-xs text-slate-500 font-medium">{comp.cat}</p>
+                      <p className="font-black text-slate-900 leading-tight mt-0.5">{comp.citizenName}</p>
+                      <p className="text-xs text-slate-500 font-medium">{comp.category}</p>
                     </div>
                   </div>
                   <Button size="sm" className="rounded-xl px-5 h-10 w-full md:w-auto" onClick={() => navigate('/pa/complaints')}>
@@ -99,6 +112,7 @@ export const PaDashboard: React.FC = () => {
                   </Button>
                 </div>
               ))}
+              )}
               <Button variant="ghost" fullWidth className="text-slate-400 text-xs font-bold" onClick={() => navigate('/pa/complaints')}>Manage All Dispatches</Button>
             </div>
           </Card>
@@ -141,14 +155,15 @@ export const PaDashboard: React.FC = () => {
         <div className="space-y-6">
           <Card title="Approval Queue" subtitle="MP Signatures Required">
             <div className="space-y-4 mt-4">
-              {[
-                { id: 'REC-102', target: 'Ministry of Railways', type: 'Recommendation' },
-                { id: 'OFF-441', target: 'District Magistrate', type: 'Enquiry' },
-              ].map((letter, i) => (
+              {pendingLetters.length === 0 ? (
+                <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-sm font-bold text-slate-500">No letters pending approval.</p>
+                </div>
+              ) : pendingLetters.map((letter, i) => (
                 <div key={i} className="p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-colors flex justify-between items-center group">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{letter.id}</p>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{letter.target}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{letter.id.slice(0, 8).toUpperCase()}</p>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">{letter.department}</p>
                     <p className="text-[10px] text-indigo-600 font-bold uppercase">{letter.type}</p>
                   </div>
                   <Button variant="ghost" size="sm" className="rounded-lg opacity-0 group-hover:opacity-100"><ArrowRight className="w-4 h-4" /></Button>

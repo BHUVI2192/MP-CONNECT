@@ -33,7 +33,7 @@ export const ContactFormPage: React.FC = () => {
         name: '',
         designation: '',
         organization: '',
-        category: 'Government' as any,
+        category: 'OTHER' as ContactCategory,
         mobile: '',
         whatsapp: '',
         email: '',

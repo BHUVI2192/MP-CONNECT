@@ -184,20 +184,27 @@ export const ContactBookPage: React.FC = () => {
                         <div>
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Category</label>
                             <div className="space-y-2">
-                                {['Officer', 'VIP', 'Political Leader', 'Media'].map(cat => (
-                                    <label key={cat} className="flex items-center gap-2 cursor-pointer group">
+                                {([
+                                  { value: 'VOTER' as ContactCategory,        label: 'Voter' },
+                                  { value: 'VILLAGE_HEAD' as ContactCategory,  label: 'Village Head' },
+                                  { value: 'CONTRACTOR' as ContactCategory,    label: 'Contractor' },
+                                  { value: 'PARTY_WORKER' as ContactCategory,  label: 'Party Worker' },
+                                  { value: 'OFFICIAL' as ContactCategory,      label: 'Official' },
+                                  { value: 'OTHER' as ContactCategory,         label: 'Other' },
+                                ]).map(({ value, label }) => (
+                                    <label key={value} className="flex items-center gap-2 cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             className="rounded border-gray-300 text-primary focus:ring-primary"
-                                            checked={filters.categories.includes(cat as ContactCategory)}
+                                            checked={filters.categories.includes(value)}
                                             onChange={(e) => {
                                                 const newCats = e.target.checked
-                                                    ? [...filters.categories, cat as ContactCategory]
-                                                    : filters.categories.filter(c => c !== cat);
+                                                    ? [...filters.categories, value]
+                                                    : filters.categories.filter(c => c !== value);
                                                 setFilters(f => ({ ...f, categories: newCats }));
                                             }}
                                         />
-                                        <span className="text-sm text-gray-600 group-hover:text-gray-900">{cat}</span>
+                                        <span className="text-sm text-gray-600 group-hover:text-gray-900">{label}</span>
                                     </label>
                                 ))}
                             </div>

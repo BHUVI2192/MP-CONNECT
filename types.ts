@@ -281,7 +281,7 @@ export interface ContactLocation {
   village: string;
 }
 
-export type ContactCategory = 'Officer' | 'VIP' | 'Political Leader' | 'Media' | 'Other';
+export type ContactCategory = 'VOTER' | 'VILLAGE_HEAD' | 'CONTRACTOR' | 'PARTY_WORKER' | 'OFFICIAL' | 'OTHER';
 
 export interface Contact {
   id: string;
