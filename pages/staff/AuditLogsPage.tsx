@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShieldAlert,
@@ -22,51 +22,52 @@ import {
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
 import { AuditLog } from '../../types';
-
-// Mock audit data
-const mockAuditLogs: AuditLog[] = [
-    {
-        log_id: 'log-1',
-        user_id: 'user-pa-1',
-        user_role: 'PA',
-        action: 'UPDATE',
-        table_name: 'railway_eq_requests',
-        record_id: 'req-101',
-        old_data: { status: 'Pending', priority: 'Normal' },
-        new_data: { status: 'Confirmed', priority: 'High' },
-        ip_address: '192.168.1.45',
-        created_at: new Date().toISOString(),
-    },
-    {
-        log_id: 'log-2',
-        user_id: 'user-staff-1',
-        user_role: 'STAFF',
-        action: 'INSERT',
-        table_name: 'parliament_letters',
-        record_id: 'let-202',
-        old_data: null,
-        new_data: { subject: 'Bridge Repair Approval', recipient: 'Ministry of Railways', status: 'Draft' },
-        ip_address: '192.168.1.22',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-        log_id: 'log-3',
-        user_id: 'user-pa-1',
-        user_role: 'PA',
-        action: 'DELETE',
-        table_name: 'railway_eq_requests',
-        record_id: 'req-105',
-        old_data: { pnr: '2435678120', traveler: 'John Doe' },
-        new_data: null,
-        ip_address: '192.168.1.45',
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-    }
-];
+import { supabase } from '../../lib/supabase';
 
 export const AuditLogsPage: React.FC = () => {
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterAction, setFilterAction] = useState<string>('ALL');
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadLogs = async () => {
+        setLoading(true);
+        const { data, error } = await (supabase as any)
+            .from('audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) {
+            console.error('Failed to load audit logs:', error);
+            setLogs([]);
+        } else {
+            setLogs((data ?? []) as AuditLog[]);
+        }
+
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        void loadLogs();
+    }, []);
+
+    const filteredLogs = useMemo(() => {
+        return logs.filter((log) => {
+            const matchesAction = filterAction === 'ALL' || log.action === filterAction;
+            const q = searchTerm.trim().toLowerCase();
+            const matchesSearch = !q || [
+                log.record_id,
+                log.table_name,
+                log.user_id,
+                log.user_role,
+                log.ip_address,
+            ].some((value) => (value ?? '').toLowerCase().includes(q));
+
+            return matchesAction && matchesSearch;
+        });
+    }, [filterAction, logs, searchTerm]);
 
     const getActionColor = (action: string) => {
         switch (action) {
@@ -96,10 +97,22 @@ export const AuditLogsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="rounded-2xl border-slate-200">
+                    <Button
+                        variant="outline"
+                        className="rounded-2xl border-slate-200"
+                        onClick={() => {
+                            const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const anchor = document.createElement('a');
+                            anchor.href = url;
+                            anchor.download = 'audit-logs.json';
+                            anchor.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                    >
                         <Download className="w-4 h-4 mr-2" /> Export Logs
                     </Button>
-                    <Button className="rounded-2xl shadow-lg shadow-indigo-100 px-8">
+                    <Button className="rounded-2xl shadow-lg shadow-indigo-100 px-8" onClick={() => void loadLogs()}>
                         <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                     </Button>
                 </div>
@@ -136,7 +149,15 @@ export const AuditLogsPage: React.FC = () => {
 
             {/* Logs Table */}
             <div className="space-y-4">
-                {mockAuditLogs.map((log) => (
+                {loading ? (
+                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p className="text-sm font-bold text-slate-500">Loading audit logs...</p>
+                    </div>
+                ) : filteredLogs.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p className="text-sm font-bold text-slate-500">No audit logs found.</p>
+                    </div>
+                ) : filteredLogs.map((log) => (
                     <Card
                         key={log.log_id}
                         className={`overflow-hidden border-l-4 transition-all ${expandedLog === log.log_id ? 'border-l-indigo-600 shadow-xl' : 'hover:border-l-indigo-400'
@@ -240,8 +261,8 @@ export const AuditLogsPage: React.FC = () => {
                 <div className="max-w-md mx-auto">
                     <p className="text-lg font-black text-slate-900 tracking-tight">Immutable Record Integrity</p>
                     <p className="text-sm text-slate-500 font-medium">
-                        These logs are generated automatically by the database trigger and cannot be modified or deleted by any user, including administrators.
-                        All modifications to <code className="bg-slate-200 px-1 rounded text-slate-700">railway_eq</code> and <code className="bg-slate-200 px-1 rounded text-slate-700">parliament_letters</code> are tracked here.
+                        This page now reads directly from the live <span className="bg-slate-200 px-1 rounded text-slate-700">audit_logs</span> table.
+                        If the list is empty, the next backend step is to add database triggers for the sensitive tables you want to track.
                     </p>
                 </div>
             </div>

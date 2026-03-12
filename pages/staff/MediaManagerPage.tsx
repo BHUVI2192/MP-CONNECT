@@ -35,26 +35,40 @@ import { Album, Photo } from '../../types';
 
 export const MediaManagerPage: React.FC = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSavingAlbum, setIsSavingAlbum] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [createAlbumForm, setCreateAlbumForm] = useState({
+    name: '',
+    eventDate: '',
+    eventType: 'Public Service',
+    location: '',
+    description: '',
+    isPublic: true,
+  });
+  const loadAlbums = async () => {
+    const { data } = await photoGalleryApi.listAlbums();
+    if (data) {
+      setAlbums(data.map((a: any) => ({
+        id: a.gallery_id, name: a.title, description: a.description ?? '',
+        eventDate: a.event_date ?? '', eventType: 'Event', location: a.location ?? '',
+        tags: [], isPublic: a.is_public ?? false,
+        coverPhotoUrl: a.cover_photo_url ||
+          (a.photo_gallery_photos?.[0] ? photoGalleryApi.getPhotoUrl(a.photo_gallery_photos[0].storage_path) : ''),
+        photoCount: a.photo_gallery_photos?.length ?? 0, viewCount: 0, downloadCount: 0,
+        createdAt: a.created_at?.split('T')[0] ?? '',
+        photos: (a.photo_gallery_photos ?? []).map((p: any) => ({
+          id: p.photo_id,
+          url: photoGalleryApi.getPhotoUrl(p.storage_path),
+          thumbnailUrl: photoGalleryApi.getPhotoUrl(p.storage_path),
+          caption: p.caption ?? '', photographer: '', dateTaken: '', isCover: p.display_order === 0,
+          fileName: p.file_name ?? '',
+        })),
+      })));
+    }
+  };
   useEffect(() => {
-    photoGalleryApi.listAlbums().then(({ data }: any) => {
-      if (data) {
-        setAlbums(data.map((a: any) => ({
-          id: a.gallery_id, name: a.title, description: a.description ?? '',
-          eventDate: a.event_date ?? '', eventType: 'Event', location: a.location ?? '',
-          tags: [], isPublic: a.is_public ?? false,
-          coverPhotoUrl: a.cover_photo_url ||
-            (a.photo_gallery_photos?.[0] ? photoGalleryApi.getPhotoUrl(a.photo_gallery_photos[0].storage_path) : ''),
-          photoCount: a.photo_gallery_photos?.length ?? 0, viewCount: 0, downloadCount: 0,
-          createdAt: a.created_at?.split('T')[0] ?? '',
-          photos: (a.photo_gallery_photos ?? []).map((p: any) => ({
-            id: p.photo_id,
-            url: photoGalleryApi.getPhotoUrl(p.storage_path),
-            thumbnailUrl: photoGalleryApi.getPhotoUrl(p.storage_path),
-            caption: p.caption ?? '', photographer: '', dateTaken: '', isCover: p.display_order === 0,
-          })),
-        })));
-      }
-    });
+    void loadAlbums();
   }, []);
   const [activeTab, setActiveTab] = useState<'clippings' | 'photos'>('photos');
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
@@ -68,11 +82,86 @@ export const MediaManagerPage: React.FC = () => {
     { id: 'pkg-3', name: 'RWA Public Meeting' }
   ];
 
-  const handleCreateAlbum = () => {
+  const filteredAlbums = albums.filter((album) => {
+    const q = searchQuery.trim().toLowerCase();
+    return !q || album.name.toLowerCase().includes(q) || album.location.toLowerCase().includes(q) || album.description.toLowerCase().includes(q);
+  });
+
+  const refreshSelectedAlbum = async (albumId: string) => {
+    const { data } = await photoGalleryApi.listAlbums();
+    if (!data) return;
+    const raw = data.find((album: any) => album.gallery_id === albumId);
+    if (!raw) return;
+
+    const mapped = {
+      id: raw.gallery_id, name: raw.title, description: raw.description ?? '',
+      eventDate: raw.event_date ?? '', eventType: 'Event', location: raw.location ?? '',
+      tags: [], isPublic: raw.is_public ?? false,
+      coverPhotoUrl: raw.cover_photo_url ||
+        (raw.photo_gallery_photos?.[0] ? photoGalleryApi.getPhotoUrl(raw.photo_gallery_photos[0].storage_path) : ''),
+      photoCount: raw.photo_gallery_photos?.length ?? 0, viewCount: 0, downloadCount: 0,
+      createdAt: raw.created_at?.split('T')[0] ?? '',
+      photos: (raw.photo_gallery_photos ?? []).map((p: any) => ({
+        id: p.photo_id,
+        url: photoGalleryApi.getPhotoUrl(p.storage_path),
+        thumbnailUrl: photoGalleryApi.getPhotoUrl(p.storage_path),
+        caption: p.caption ?? '', photographer: '', dateTaken: '', isCover: p.display_order === 0,
+        fileName: p.file_name ?? '',
+      })),
+    } as Album;
+
+    setSelectedAlbum(mapped);
+    await loadAlbums();
+  };
+
+  const handleCreateAlbum = async () => {
+    if (!createAlbumForm.name || !createAlbumForm.eventDate) {
+      alert('Album name and event date are required.');
+      return;
+    }
+
+    setIsSavingAlbum(true);
+    const { data, error } = await photoGalleryApi.createAlbum({
+      title: createAlbumForm.name,
+      description: createAlbumForm.description || null,
+      event_date: createAlbumForm.eventDate,
+      location: createAlbumForm.location || null,
+      is_public: createAlbumForm.isPublic,
+    });
+
+    setIsSavingAlbum(false);
+
+    if (error) {
+      console.error('Failed to create album:', error);
+      alert(`Failed to create album: ${error.message}`);
+      return;
+    }
+
     setShowCreateAlbum(false);
-    // In a real app, this would redirect to the upload page for the new album
-    // For now, we'll just simulate selecting an album
-    setSelectedAlbum(albums[0] ?? null);
+    setCreateAlbumForm({ name: '', eventDate: '', eventType: 'Public Service', location: '', description: '', isPublic: true });
+    await loadAlbums();
+    if (data?.gallery_id) {
+      await refreshSelectedAlbum(data.gallery_id);
+    }
+  };
+
+  const handlePhotoSelection = async (files: FileList | null) => {
+    if (!selectedAlbum || !files?.length) return;
+
+    setUploadingPhotos(true);
+    try {
+      for (const file of Array.from(files)) {
+        const { error } = await photoGalleryApi.uploadPhoto(selectedAlbum.id, file);
+        if (error) throw error;
+      }
+      await refreshSelectedAlbum(selectedAlbum.id);
+    } catch (err: any) {
+      console.error('Photo upload failed:', err);
+      alert(`Photo upload failed: ${err?.message ?? 'Unknown error'}`);
+    } finally {
+      setUploadingPhotos(false);
+      setIsUploading(false);
+    }
   };
 
   if (selectedAlbum) {
@@ -92,8 +181,18 @@ export const MediaManagerPage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-xl"><Share2 className="w-4 h-4 mr-2" /> Share Link</Button>
-            <Button className="rounded-xl shadow-lg shadow-indigo-100 px-8">Publish Album</Button>
+            <Button variant="outline" className="rounded-xl" onClick={async () => {
+              await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#/gallery`);
+              alert('Public gallery link copied.');
+            }}><Share2 className="w-4 h-4 mr-2" /> Share Link</Button>
+            <Button className="rounded-xl shadow-lg shadow-indigo-100 px-8" onClick={async () => {
+              const { error } = await photoGalleryApi.updateAlbum(selectedAlbum.id, { is_public: true });
+              if (error) {
+                alert(`Failed to publish album: ${error.message}`);
+                return;
+              }
+              await refreshSelectedAlbum(selectedAlbum.id);
+            }}>{selectedAlbum.isPublic ? 'Published' : 'Publish Album'}</Button>
           </div>
         </header>
 
@@ -102,6 +201,7 @@ export const MediaManagerPage: React.FC = () => {
           className="p-16 border-4 border-dashed border-slate-200 rounded-[3rem] text-center space-y-4 hover:border-indigo-300 transition-all cursor-pointer bg-slate-50 group"
           onClick={() => setIsUploading(true)}
         >
+          <input id="album-photo-upload" type="file" multiple accept="image/*" className="hidden" onChange={(e) => void handlePhotoSelection(e.target.files)} />
           <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
             <Camera className="w-10 h-10 text-indigo-600" />
           </div>
@@ -109,7 +209,10 @@ export const MediaManagerPage: React.FC = () => {
             <p className="text-xl font-black text-slate-900">Drag high-res photos here</p>
             <p className="text-sm text-slate-400 font-medium">JPG, PNG, WEBP supported. Max 20MB per file.</p>
           </div>
-          <Button variant="outline" className="rounded-xl">Browse Files</Button>
+          <Button variant="outline" className="rounded-xl" onClick={(e) => {
+            e.stopPropagation();
+            document.getElementById('album-photo-upload')?.click();
+          }}>Browse Files</Button>
         </div>
 
         {/* Photo Grid */}
@@ -124,7 +227,16 @@ export const MediaManagerPage: React.FC = () => {
                 <button className="p-2 bg-white/20 text-white hover:bg-white/40 rounded-lg">
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button className="p-2 bg-white/20 text-red-400 hover:bg-red-400/20 rounded-lg">
+                <button className="p-2 bg-white/20 text-red-400 hover:bg-red-400/20 rounded-lg" onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!window.confirm('Delete this photo?')) return;
+                  const { error } = await photoGalleryApi.deletePhoto(photo.id, photo.url?.includes('/storage/v1/object/public/photo-gallery/') ? decodeURIComponent(photo.url.split('/storage/v1/object/public/photo-gallery/')[1]) : undefined);
+                  if (error) {
+                    alert(`Failed to delete photo: ${error.message}`);
+                    return;
+                  }
+                  await refreshSelectedAlbum(selectedAlbum.id);
+                }}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -140,7 +252,7 @@ export const MediaManagerPage: React.FC = () => {
         {/* Bulk Actions Bar */}
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
           <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-6 border border-slate-800">
-            <p className="text-sm font-bold border-r border-slate-700 pr-6">12 Photos Selected</p>
+            <p className="text-sm font-bold border-r border-slate-700 pr-6">{selectedAlbum.photoCount} Photos</p>
             <div className="flex gap-4">
               <button className="text-sm font-bold hover:text-indigo-400 transition-colors">Edit Captions</button>
               <button className="text-sm font-bold hover:text-indigo-400 transition-colors">Move to Album</button>
@@ -179,7 +291,7 @@ export const MediaManagerPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <Button fullWidth className="mt-8 rounded-xl" onClick={() => setIsUploading(false)}>Done</Button>
+                  <Button fullWidth className="mt-8 rounded-xl" onClick={() => document.getElementById('album-photo-upload')?.click()}>{uploadingPhotos ? 'Uploading...' : 'Choose Photos'}</Button>
                 </div>
               </motion.div>
             </div>
@@ -213,11 +325,19 @@ export const MediaManagerPage: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder="Search by headline, tag or event..." className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-sm" />
+          <input type="text" placeholder="Search by headline, tag or event..." className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-2xl focus:border-indigo-500 outline-none transition-all shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="rounded-xl"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
-          <Button variant="outline" size="sm" className="rounded-xl"><Download className="w-4 h-4 mr-2" /> Export</Button>
+          <Button variant="outline" size="sm" className="rounded-xl" onClick={() => {
+            const blob = new Blob([JSON.stringify(filteredAlbums, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = 'photo-gallery-albums.json';
+            anchor.click();
+            URL.revokeObjectURL(url);
+          }}><Download className="w-4 h-4 mr-2" /> Export</Button>
         </div>
       </div>
 
@@ -247,7 +367,7 @@ export const MediaManagerPage: React.FC = () => {
           </motion.div>
         ) : (
           <motion.div key="photos" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {albums.map((album) => (
+            {filteredAlbums.map((album) => (
               <div 
                 key={album.id} 
                 className="group relative bg-white rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl transition-all cursor-pointer"
@@ -308,18 +428,18 @@ export const MediaManagerPage: React.FC = () => {
                     <div className="grid md:grid-cols-2 gap-6">
                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Album Name</label>
-                          <input type="text" placeholder="e.g. Rampur Relief Drive" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <input type="text" placeholder="e.g. Rampur Relief Drive" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={createAlbumForm.name} onChange={(e) => setCreateAlbumForm((prev) => ({ ...prev, name: e.target.value }))} />
                        </div>
                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Date</label>
-                          <input type="date" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <input type="date" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={createAlbumForm.eventDate} onChange={(e) => setCreateAlbumForm((prev) => ({ ...prev, eventDate: e.target.value }))} />
                        </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Type</label>
-                          <select className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={createAlbumForm.eventType} onChange={(e) => setCreateAlbumForm((prev) => ({ ...prev, eventType: e.target.value }))}>
                              <option>Public Service</option>
                              <option>Inauguration</option>
                              <option>Internal Meeting</option>
@@ -328,13 +448,13 @@ export const MediaManagerPage: React.FC = () => {
                        </div>
                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</label>
-                          <input type="text" placeholder="e.g. Rampur Village" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <input type="text" placeholder="e.g. Rampur Village" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={createAlbumForm.location} onChange={(e) => setCreateAlbumForm((prev) => ({ ...prev, location: e.target.value }))} />
                        </div>
                     </div>
 
                     <div className="space-y-1.5">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
-                       <textarea rows={3} placeholder="Brief details about the event..." className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-medium text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                          <textarea rows={3} placeholder="Brief details about the event..." className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl font-medium text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" value={createAlbumForm.description} onChange={(e) => setCreateAlbumForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
 
                     <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between">
@@ -347,12 +467,12 @@ export const MediaManagerPage: React.FC = () => {
                              <p className="text-[10px] text-slate-400 font-bold uppercase">Visible to citizens on public portal</p>
                           </div>
                        </div>
-                       <button className="w-12 h-6 bg-indigo-600 rounded-full relative p-1 transition-colors">
-                          <div className="w-4 h-4 bg-white rounded-full absolute right-1" />
+                        <button className={`w-12 h-6 rounded-full relative p-1 transition-colors ${createAlbumForm.isPublic ? 'bg-indigo-600' : 'bg-slate-200'}`} onClick={() => setCreateAlbumForm((prev) => ({ ...prev, isPublic: !prev.isPublic }))}>
+                          <div className={`w-4 h-4 bg-white rounded-full absolute ${createAlbumForm.isPublic ? 'right-1' : 'left-1'}`} />
                        </button>
                     </div>
 
-                    <Button fullWidth size="lg" className="rounded-2xl" onClick={handleCreateAlbum}>Create Album & Continue</Button>
+                      <Button fullWidth size="lg" className="rounded-2xl" onClick={() => void handleCreateAlbum()} disabled={isSavingAlbum}>{isSavingAlbum ? 'Creating Album...' : 'Create Album & Continue'}</Button>
                   </div>
                </div>
             </motion.div>

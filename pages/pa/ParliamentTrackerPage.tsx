@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -25,6 +25,7 @@ export const ParliamentTrackerPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'letters' | 'questions' | 'answers'>('letters');
   const [letters, setLetters] = useState<ParliamentLetter[]>([]);
   const [questions, setQuestions] = useState<ParliamentQuestion[]>([]);
+  const [overdueLettersCount, setOverdueLettersCount] = useState(0);
   useEffect(() => {
     parliamentApi.getLetters().then(({ data }: any) => {
       if (data) setLetters(data.map((r: any) => ({
@@ -44,6 +45,9 @@ export const ParliamentTrackerPage: React.FC = () => {
         sessionName: r.session_name ?? '', sessionDate: r.session_date ?? '',
       })));
     });
+    parliamentApi.getOverdueLetters().then(({ data }: any) => {
+      setOverdueLettersCount((data ?? []).length);
+    });
   }, []);
 
   const stats = [
@@ -51,15 +55,45 @@ export const ParliamentTrackerPage: React.FC = () => {
     { label: 'Pending Replies', value: letters.filter(l => l.status !== 'REPLIED' && l.status !== 'CLOSED').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Questions Raised', value: questions.length, icon: HelpCircle, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: 'Questions Answered', value: questions.filter(q => q.status === 'ANSWERED').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Overdue Letters', value: 2, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', isCritical: true },
+    { label: 'Overdue Letters', value: overdueLettersCount, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', isCritical: true },
   ];
 
-  const recentActivity = [
-    { type: 'letter', title: 'Overbridge at Maujpur', date: '2024-02-10', status: 'SENT', color: 'border-blue-500' },
-    { type: 'question', title: 'PMAY Status in NED', date: '2024-03-05', status: 'ANSWERED', color: 'border-indigo-500' },
-    { type: 'answer', title: 'CGHS Wellness Centers', date: '2024-02-27', status: 'ADMITTED', color: 'border-emerald-500' },
-    { type: 'letter', title: 'Skill Development Center', date: '2024-01-15', status: 'ACKNOWLEDGED', color: 'border-blue-500' },
-  ];
+  const recentActivity = useMemo(() => {
+    const letterItems = letters.map((letter) => ({
+      id: `letter-${letter.id}`,
+      type: 'letter',
+      title: letter.subject,
+      date: letter.sentDate,
+      status: letter.status,
+      color: 'border-blue-500',
+      path: '/pa/parliament/letters',
+    }));
+
+    const questionItems = questions.map((question) => ({
+      id: `question-${question.id}`,
+      type: 'question',
+      title: question.subject,
+      date: question.sessionDate,
+      status: question.status,
+      color: question.status === 'ANSWERED' ? 'border-emerald-500' : 'border-indigo-500',
+      path: '/pa/parliament/questions',
+    }));
+
+    return [...letterItems, ...questionItems]
+      .filter((item) => item.date)
+      .sort((left, right) => right.date.localeCompare(left.date))
+      .slice(0, 6);
+  }, [letters, questions]);
+
+  const exportParliamentReport = () => {
+    const blob = new Blob([JSON.stringify({ letters, questions }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'parliament-report.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-10">
@@ -86,16 +120,21 @@ export const ParliamentTrackerPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-black text-slate-900">Recent Activity</h3>
-            <Button variant="ghost" size="sm" className="text-indigo-600 font-bold">View All</Button>
+            <Button variant="ghost" size="sm" className="text-indigo-600 font-bold" onClick={() => navigate('/pa/parliament/letters')}>View All</Button>
           </div>
           <div className="space-y-4">
-            {recentActivity.map((item, i) => (
+            {recentActivity.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p className="text-sm font-bold text-slate-500">No parliament activity recorded yet.</p>
+              </div>
+            ) : recentActivity.map((item, i) => (
               <motion.div 
-                key={i}
+                key={item.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
                 className={`bg-white p-5 rounded-2xl border-l-4 ${item.color} shadow-sm flex items-center justify-between group cursor-pointer hover:shadow-md transition-all`}
+                onClick={() => navigate(item.path)}
               >
                 <div className="flex items-center gap-4">
                   <div className="space-y-1">
@@ -123,14 +162,15 @@ export const ParliamentTrackerPage: React.FC = () => {
           <h3 className="text-xl font-black text-slate-900">Quick Actions</h3>
           <div className="grid gap-3">
             {[
-              { label: 'View Overdue Letters', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
-              { label: 'View Unanswered Questions', icon: HelpCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-              { label: 'Items Needing Follow-up', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { label: 'Export Parliament Report (PDF)', icon: Download, color: 'text-slate-600', bg: 'bg-slate-100' },
+              { label: 'View Overdue Letters', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', onClick: () => navigate('/pa/parliament/letters') },
+              { label: 'View Unanswered Questions', icon: HelpCircle, color: 'text-amber-600', bg: 'bg-amber-50', onClick: () => navigate('/pa/parliament/questions') },
+              { label: 'Items Needing Follow-up', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50', onClick: () => navigate('/pa/parliament/letters') },
+              { label: 'Export Parliament Report (JSON)', icon: Download, color: 'text-slate-600', bg: 'bg-slate-100', onClick: exportParliamentReport },
             ].map((action, i) => (
               <button 
                 key={i}
                 className="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:border-indigo-200 hover:shadow-md transition-all group text-left"
+                onClick={action.onClick}
               >
                 <div className={`w-10 h-10 ${action.bg} ${action.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                   <action.icon className="w-5 h-5" />
@@ -148,7 +188,7 @@ export const ParliamentTrackerPage: React.FC = () => {
           {[
             { id: 'letters', label: 'Parliament Letters', path: '/pa/parliament/letters' },
             { id: 'questions', label: 'Parliament Questions', path: '/pa/parliament/questions' },
-            { id: 'answers', label: 'Parliament Answers', path: '/pa/parliament/answers' },
+            { id: 'answers', label: 'Parliament Answers', path: '/pa/parliament/questions' },
           ].map((tab) => (
             <button 
               key={tab.id}

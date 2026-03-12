@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -28,6 +28,7 @@ import {
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { SpeechType } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 const STEPS = [
   { id: 1, title: 'Basic Info', icon: Info },
@@ -38,6 +39,7 @@ const STEPS = [
 ];
 
 export const SpeechUploadPage: React.FC = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
@@ -60,7 +62,10 @@ export const SpeechUploadPage: React.FC = () => {
 
   const [newTopic, setNewTopic] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ audio: 0, video: 0 });
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const waveformHeights = [
     30, 45, 60, 20, 80, 40, 90, 30, 50, 70, 40, 60, 80, 20, 40, 90, 30, 50, 70, 40,
@@ -95,15 +100,99 @@ export const SpeechUploadPage: React.FC = () => {
     setFormData(prev => ({ ...prev, keyTopics: prev.keyTopics.filter(t => t !== topic) }));
   };
 
-  const handleTranscribe = () => {
+  const uploadSpeechMedia = async (file: File | null, kind: 'audio' | 'video') => {
+    if (!file) return null;
+
+    const path = `speech-media/${kind}/${Date.now()}_${file.name}`;
+    setUploadProgress((prev) => ({ ...prev, [kind]: 20 }));
+
+    const { error } = await supabase.storage.from('photo-gallery').upload(path, file, {
+      upsert: false,
+      contentType: file.type,
+    });
+
+    if (error) throw error;
+
+    setUploadProgress((prev) => ({ ...prev, [kind]: 100 }));
+    return supabase.storage.from('photo-gallery').getPublicUrl(path).data.publicUrl;
+  };
+
+  const handleTranscribe = async () => {
+    if (!formData.audioFile) {
+      alert('Upload an audio file before starting transcription.');
+      return;
+    }
+
     setIsTranscribing(true);
-    setTimeout(() => {
-      setFormData(prev => ({
-        ...prev,
-        transcript: '[00:00] Speaker Sir, today I stand to support the agricultural reforms. [00:45] Our farmers in Northeast Delhi are facing unique challenges due to rapid urbanization.'
-      }));
+    try {
+      const path = `speech-transcripts/${Date.now()}_${formData.audioFile.name}`;
+      const { error: uploadError } = await supabase.storage.from('daybook-audio').upload(path, formData.audioFile, {
+        upsert: false,
+        contentType: formData.audioFile.type,
+      });
+
+      if (uploadError) throw uploadError;
+
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: {
+          storage_path: path,
+          bucket: 'daybook-audio',
+          language: formData.language === 'Hindi' ? 'hi-IN' : formData.language === 'English' ? 'en-IN' : 'hi-IN',
+        },
+      });
+
+      if (error) throw error;
+
+      setFormData((prev) => ({ ...prev, transcript: data?.transcript ?? '' }));
+    } catch (err: any) {
+      console.error('Transcription failed:', err);
+      alert(`Transcription failed: ${err?.message ?? 'Unknown error'}`);
+    } finally {
       setIsTranscribing(false);
-    }, 3000);
+    }
+  };
+
+  const handleUploadSpeech = async () => {
+    if (!formData.title || !formData.date) {
+      alert('Title and speech date are required.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const [audioUrl, videoUrl] = await Promise.all([
+        uploadSpeechMedia(formData.audioFile, 'audio'),
+        uploadSpeechMedia(formData.videoFile, 'video'),
+      ]);
+
+      const { error } = await (supabase as any).from('speech_storage').insert({
+        title: formData.title,
+        type: formData.type,
+        speech_date: formData.date,
+        event_name: formData.eventName || null,
+        location: formData.location || null,
+        occasion: formData.occasion || null,
+        language: formData.language,
+        description: formData.description || null,
+        key_topics: formData.keyTopics,
+        key_points: formData.keyPoints.filter(Boolean),
+        audio_url: audioUrl,
+        video_url: videoUrl,
+        transcript: formData.transcript || null,
+        is_important: formData.isImportant,
+        is_public: formData.isPublic,
+      });
+
+      if (error) throw error;
+
+      alert('Speech uploaded successfully.');
+      navigate('/pa/speeches');
+    } catch (err: any) {
+      console.error('Speech upload failed:', err);
+      alert(`Upload failed: ${err?.message ?? 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -256,11 +345,13 @@ export const SpeechUploadPage: React.FC = () => {
                     </div>
                     <h4 className="text-xl font-black text-slate-900">Audio Recording</h4>
                   </div>
-                  <div className="p-12 border-4 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50 text-center space-y-4 group hover:border-indigo-200 transition-all cursor-pointer">
+                  <div className="p-12 border-4 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50 text-center space-y-4 group hover:border-indigo-200 transition-all cursor-pointer" onClick={() => audioInputRef.current?.click()}>
+                    <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => setFormData((prev) => ({ ...prev, audioFile: e.target.files?.[0] ?? null }))} />
                     <Upload className="w-12 h-12 text-slate-300 mx-auto group-hover:scale-110 transition-transform" />
                     <div>
                       <p className="text-sm font-black text-slate-900">Upload Audio File</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">MP3, WAV, AAC (Max 500MB)</p>
+                      {formData.audioFile && <p className="text-[10px] text-indigo-600 font-bold uppercase mt-2">{formData.audioFile.name}</p>}
                     </div>
                   </div>
                   {/* Simulated Waveform Preview */}
@@ -286,15 +377,21 @@ export const SpeechUploadPage: React.FC = () => {
                     </div>
                     <h4 className="text-xl font-black text-slate-900">Video Recording</h4>
                   </div>
-                  <div className="p-12 border-4 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50 text-center space-y-4 group hover:border-indigo-200 transition-all cursor-pointer">
+                  <div className="p-12 border-4 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50 text-center space-y-4 group hover:border-indigo-200 transition-all cursor-pointer" onClick={() => videoInputRef.current?.click()}>
+                    <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={(e) => setFormData((prev) => ({ ...prev, videoFile: e.target.files?.[0] ?? null }))} />
                     <Upload className="w-12 h-12 text-slate-300 mx-auto group-hover:scale-110 transition-transform" />
                     <div>
                       <p className="text-sm font-black text-slate-900">Upload Video File</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">MP4, MOV, AVI (Max 2GB)</p>
+                      {formData.videoFile && <p className="text-[10px] text-indigo-600 font-bold uppercase mt-2">{formData.videoFile.name}</p>}
                     </div>
                   </div>
                   <div className="aspect-video bg-slate-100 rounded-3xl flex items-center justify-center relative overflow-hidden">
-                    <img src="https://picsum.photos/seed/video/800/450" className="w-full h-full object-cover opacity-50" />
+                    {formData.videoFile ? (
+                      <video src={URL.createObjectURL(formData.videoFile)} className="w-full h-full object-cover opacity-80" />
+                    ) : (
+                      <img src="https://picsum.photos/seed/video/800/450" className="w-full h-full object-cover opacity-50" />
+                    )}
                     <Play className="w-12 h-12 text-slate-400 absolute" />
                   </div>
                 </div>
@@ -492,27 +589,8 @@ export const SpeechUploadPage: React.FC = () => {
                       <p className="text-[10px] text-slate-500 font-medium">All required information has been provided.</p>
                     </div>
                   </div>
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12" onClick={async () => {
-                    const { error } = await (supabase as any).from('speech_storage').insert({
-                      speech_title: formData.title,
-                      title: formData.title,
-                      type: formData.type,
-                      speech_date: formData.date || new Date().toISOString().split('T')[0],
-                      event_name: formData.eventName || null,
-                      location: formData.location || null,
-                      occasion: formData.occasion || null,
-                      language: formData.language,
-                      description: formData.description || null,
-                      key_topics: formData.keyTopics,
-                      key_points: formData.keyPoints.filter(Boolean),
-                      transcript: formData.transcript || null,
-                      is_important: formData.isImportant,
-                      is_public: formData.isPublic,
-                    });
-                    if (error) { console.error('[DB] uploadSpeech:', error.message, error); alert('Upload failed: ' + error.message); }
-                    else { alert('Speech uploaded successfully!'); }
-                  }}>
-                    Upload Speech
+                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12" onClick={handleUploadSpeech} disabled={isSaving}>
+                    {isSaving ? 'Uploading...' : 'Upload Speech'}
                   </Button>
                 </div>
               </div>
