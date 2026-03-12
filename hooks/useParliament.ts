@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 
 export const parliamentApi = {
     async getDashboardStats() {
-        return (supabase as any).rpc('get_parliament_stats')
+        return supabase.rpc('get_parliament_stats')
     },
 
     async getLetters(filters: Record<string, any> = {}) {

@@ -23,7 +23,7 @@ export const planTodayApi = {
     },
 
     async finalizeDay(date: string, paId: string) {
-        return (supabase as any).rpc('finalize_day_plan', { p_date: date, p_pa_id: paId })
+        return supabase.rpc('finalize_day_plan', { p_date: date, p_pa_id: paId })
     },
 
     async markFinalStatus(eventId: string, attended: boolean, finalNotes: string) {

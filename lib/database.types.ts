@@ -1074,5 +1074,57 @@ export interface Database {
                 }
             }
         }
+        Functions: {
+            get_todays_birthdays: {
+                Args: Record<PropertyKey, never>
+                Returns: {
+                    contact_id: string
+                    full_name: string
+                    mobile: string | null
+                    email: string | null
+                    organization: string | null
+                    designation: string | null
+                    birthday: string | null
+                    anniversary: string | null
+                    location_village: string | null
+                    location_taluk: string | null
+                    zilla: string | null
+                    state: string | null
+                }[]
+            }
+            get_todays_anniversaries: {
+                Args: Record<PropertyKey, never>
+                Returns: {
+                    contact_id: string
+                    full_name: string
+                    mobile: string | null
+                    email: string | null
+                    organization: string | null
+                    designation: string | null
+                    birthday: string | null
+                    anniversary: string | null
+                    location_village: string | null
+                    location_taluk: string | null
+                    zilla: string | null
+                    state: string | null
+                }[]
+            }
+            finalize_day_plan: {
+                Args: { p_date: string; p_pa_id: string }
+                Returns: undefined
+            }
+            generate_eq_letter_number: {
+                Args: { constituency: string }
+                Returns: string
+            }
+            get_eq_quota_status: {
+                Args: Record<PropertyKey, never>
+                Returns: { used: number; quota: number; remaining: number }
+            }
+            get_parliament_stats: {
+                Args: Record<PropertyKey, never>
+                Returns: { total_letters: number; pending_letters: number; total_questions: number; answered_questions: number }
+            }
+        }
     }
 }

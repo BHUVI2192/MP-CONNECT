@@ -9,7 +9,7 @@ export const railwayEQApi = {
 
     async submitRequest(payload: Record<string, any>) {
         // 1. Generate letter number
-        const { data: letterNum } = await (supabase as any)
+        const { data: letterNum } = await supabase
             .rpc('generate_eq_letter_number', { constituency: 'SMG' })
 
         // 2. Insert request
@@ -48,7 +48,7 @@ export const railwayEQApi = {
     },
 
     async getQuotaStatus() {
-        return (supabase as any).rpc('get_eq_quota_status')
+        return supabase.rpc('get_eq_quota_status')
     },
 
     async rejectRequest(eqId: string, reason: string) {

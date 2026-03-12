@@ -56,11 +56,11 @@ export const contactsApi = {
     },
 
     async getTodaysBirthdays() {
-        return (supabase as any).rpc('get_todays_birthdays');
+        return supabase.rpc('get_todays_birthdays');
     },
 
     async getTodaysAnniversaries() {
-        return (supabase as any).rpc('get_todays_anniversaries');
+        return supabase.rpc('get_todays_anniversaries');
     },
 
     async bulkUpload(contacts: Record<string, any>[]) {
