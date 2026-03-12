@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
-import { MOCK_PROJECTS } from '../mockProjects';
+import { devWorksApi } from '../hooks/useDevelopmentWorks';
 import { Project } from '../types';
 
 const SECTORS = [
@@ -110,7 +110,30 @@ export const DevelopmentWorksSearchPage: React.FC = () => {
   const location = useLocation();
   const isPublic = location.pathname === '/development-works';
   const isPa = location.pathname.includes('/pa/');
-  
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  useEffect(() => {
+    devWorksApi.list({ is_public: isPublic ? true : undefined }).then(({ data }: any) => {
+      if (data) {
+        const statusMap: Record<string, Project['status']> = {
+          PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
+          COMPLETED: 'Completed', ON_HOLD: 'On Hold',
+        };
+        setAllProjects(data.map((r: any) => ({
+          id: r.work_id, name: r.work_title, category: r.sector ?? 'Other',
+          status: statusMap[r.status] ?? 'Planned', progress: r.progress_pct ?? 0,
+          budget: r.sanctioned_amount ?? r.estimated_cost ?? 0,
+          zilla: r.zilla ?? '', taluk: r.taluk ?? '', gp: r.gram_panchayat ?? '',
+          village: r.village ?? '', sanctionOrderNo: r.scheme_name ?? '',
+          startDate: r.start_date ?? '', completionDate: r.target_date ?? undefined,
+          beneficiaries: 0, description: '',
+          fundingSource: 'MPLADS',
+          photos: (r.development_work_media ?? []).filter((m: any) => m.media_type === 'PHOTO').map((m: any) => ({
+            url: m.storage_path, caption: m.file_name ?? '',
+          })),
+        })));
+      }
+    });
+  }, [isPublic]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(true);
@@ -140,7 +163,7 @@ export const DevelopmentWorksSearchPage: React.FC = () => {
   }, [searchQuery]);
 
   const filteredProjects = useMemo(() => {
-    const results = MOCK_PROJECTS.filter(p => {
+    const results = allProjects.filter(p => {
       const matchesQuery = debouncedQuery === '' || 
         p.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
@@ -155,14 +178,12 @@ export const DevelopmentWorksSearchPage: React.FC = () => {
       const matchesVillage = !filters.village || p.village === filters.village;
       const matchesBudget = p.budget >= filters.budgetMin && p.budget <= filters.budgetMax;
       const matchesFunding = filters.fundingSources.length === 0 || (p.fundingSource && filters.fundingSources.includes(p.fundingSource));
-      
       const matchesDate = (!filters.dateFrom || new Date(p.startDate) >= new Date(filters.dateFrom)) &&
                           (!filters.dateTo || new Date(p.startDate) <= new Date(filters.dateTo));
 
       return matchesQuery && matchesSector && matchesStatus && matchesZilla && matchesTaluk && matchesGP && matchesVillage && matchesBudget && matchesFunding && matchesDate;
     });
 
-    // Sorting
     results.sort((a, b) => {
       if (sortBy === 'recent') return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
       if (sortBy === 'oldest') return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
@@ -173,18 +194,18 @@ export const DevelopmentWorksSearchPage: React.FC = () => {
     });
 
     return results;
-  }, [debouncedQuery, filters, sortBy]);
+  }, [allProjects, debouncedQuery, filters, sortBy]);
 
   const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
 
   const stats = useMemo(() => {
     return {
-      completed: MOCK_PROJECTS.filter(p => p.status === 'Completed').length,
-      totalBudget: MOCK_PROJECTS.reduce((acc, p) => acc + p.budget, 0),
-      beneficiaries: MOCK_PROJECTS.reduce((acc, p) => acc + (p.beneficiaries || 0), 0)
+      completed: allProjects.filter(p => p.status === 'Completed').length,
+      totalBudget: allProjects.reduce((acc, p) => acc + (p.budget ?? 0), 0),
+      beneficiaries: allProjects.reduce((acc: number, p: any) => acc + (p.beneficiaries || 0), 0)
     };
-  }, []);
+  }, [allProjects]);
 
   const removeFilter = (key: keyof typeof filters, value?: string) => {
     if (Array.isArray(filters[key])) {

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -16,18 +16,41 @@ import {
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
-import { mockParliamentLetters, mockParliamentQuestions } from '../../mockParliament';
+import { parliamentApi } from '../../hooks/useParliament';
+import { ParliamentLetter, ParliamentQuestion } from '../../types';
 import { useNavigate } from 'react-router-dom';
 
 export const ParliamentTrackerPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'letters' | 'questions' | 'answers'>('letters');
+  const [letters, setLetters] = useState<ParliamentLetter[]>([]);
+  const [questions, setQuestions] = useState<ParliamentQuestion[]>([]);
+  useEffect(() => {
+    parliamentApi.getLetters().then(({ data }: any) => {
+      if (data) setLetters(data.map((r: any) => ({
+        id: r.letter_id, refNumber: r.ref_number ?? '', subject: r.subject,
+        ministry: r.ministry, department: r.department ?? '', addressedTo: r.addressed_to ?? '',
+        type: r.type ?? 'Request', priority: r.priority ?? 'Medium',
+        sentDate: r.sent_date ?? '', expectedResponseDate: r.expected_response_date ?? '',
+        summary: r.summary ?? '', constituencyIssue: r.constituency_issue ?? '',
+        status: r.status, timeline: r.timeline ?? [],
+      })));
+    });
+    parliamentApi.getQuestions().then(({ data }: any) => {
+      if (data) setQuestions(data.map((r: any) => ({
+        id: r.id, questionNumber: r.question_number ?? '', type: r.type ?? 'Unstarred',
+        subject: r.subject, ministry: r.ministry ?? '', status: r.status,
+        priority: r.priority ?? 'Medium', tags: r.tags ?? [],
+        sessionName: r.session_name ?? '', sessionDate: r.session_date ?? '',
+      })));
+    });
+  }, []);
 
   const stats = [
-    { label: 'Total Letters Sent', value: mockParliamentLetters.length, icon: Mail, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Pending Replies', value: mockParliamentLetters.filter(l => l.status !== 'REPLIED' && l.status !== 'CLOSED').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Questions Raised', value: mockParliamentQuestions.length, icon: HelpCircle, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Questions Answered', value: mockParliamentQuestions.filter(q => q.status === 'ANSWERED').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Letters Sent', value: letters.length, icon: Mail, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Pending Replies', value: letters.filter(l => l.status !== 'REPLIED' && l.status !== 'CLOSED').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Questions Raised', value: questions.length, icon: HelpCircle, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Questions Answered', value: questions.filter(q => q.status === 'ANSWERED').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Overdue Letters', value: 2, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', isCritical: true },
   ];
 

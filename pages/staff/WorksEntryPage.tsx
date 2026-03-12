@@ -51,6 +51,9 @@ export const WorksEntryPage: React.FC = () => {
       progress: 0,
       budget: newWork.budget || 0,
       village: newWork.village!,
+      zilla: '',
+      taluk: '',
+      gp: '',
       sanctionOrderNo: newWork.sanctionOrderNo || `SO-${Math.floor(Math.random() * 100)}/2024`,
       startDate: new Date().toISOString().split('T')[0]
     };
@@ -158,7 +161,7 @@ export const WorksEntryPage: React.FC = () => {
                   <td className="px-8 py-5 text-sm font-black text-slate-900">₹{(project.budget / 10000000).toFixed(1)} Cr</td>
                   <td className="px-8 py-5">
                     <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${project.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                      project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                      project.status === 'Ongoing' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
                       }`}>
                       {project.status}
                     </span>

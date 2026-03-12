@@ -1,5 +1,5 @@
 ﻿
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
@@ -30,10 +30,32 @@ import {
   Eye,
   MapPin
 } from 'lucide-react';
-import { mockAlbums } from '../../mockGallery';
+import { photoGalleryApi } from '../../hooks/usePhotoGallery';
 import { Album, Photo } from '../../types';
 
 export const MediaManagerPage: React.FC = () => {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  useEffect(() => {
+    photoGalleryApi.listAlbums().then(({ data }: any) => {
+      if (data) {
+        setAlbums(data.map((a: any) => ({
+          id: a.gallery_id, name: a.title, description: a.description ?? '',
+          eventDate: a.event_date ?? '', eventType: 'Event', location: a.location ?? '',
+          tags: [], isPublic: a.is_public ?? false,
+          coverPhotoUrl: a.cover_photo_url ||
+            (a.photo_gallery_photos?.[0] ? photoGalleryApi.getPhotoUrl(a.photo_gallery_photos[0].storage_path) : ''),
+          photoCount: a.photo_gallery_photos?.length ?? 0, viewCount: 0, downloadCount: 0,
+          createdAt: a.created_at?.split('T')[0] ?? '',
+          photos: (a.photo_gallery_photos ?? []).map((p: any) => ({
+            id: p.photo_id,
+            url: photoGalleryApi.getPhotoUrl(p.storage_path),
+            thumbnailUrl: photoGalleryApi.getPhotoUrl(p.storage_path),
+            caption: p.caption ?? '', photographer: '', dateTaken: '', isCover: p.display_order === 0,
+          })),
+        })));
+      }
+    });
+  }, []);
   const [activeTab, setActiveTab] = useState<'clippings' | 'photos'>('photos');
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -50,7 +72,7 @@ export const MediaManagerPage: React.FC = () => {
     setShowCreateAlbum(false);
     // In a real app, this would redirect to the upload page for the new album
     // For now, we'll just simulate selecting an album
-    setSelectedAlbum(mockAlbums[0]);
+    setSelectedAlbum(albums[0] ?? null);
   };
 
   if (selectedAlbum) {
@@ -225,7 +247,7 @@ export const MediaManagerPage: React.FC = () => {
           </motion.div>
         ) : (
           <motion.div key="photos" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {mockAlbums.map((album) => (
+            {albums.map((album) => (
               <div 
                 key={album.id} 
                 className="group relative bg-white rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl transition-all cursor-pointer"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -24,12 +24,30 @@ import {
   Tag,
   X
 } from 'lucide-react';
-import { mockSpeeches } from '../../mockSpeeches';
+import { supabase } from '../../lib/supabase';
 import { Speech, SpeechType } from '../../types';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 
 export const SpeechArchivePage: React.FC = () => {
+  const [speeches, setSpeeches] = useState<Speech[]>([]);
+  useEffect(() => {
+    supabase.from('speech_storage').select('*').order('speech_date', { ascending: false })
+      .then(({ data }: any) => {
+        if (data) setSpeeches(data.map((r: any) => ({
+          id: r.speech_id, title: r.title, type: (r.type ?? 'Other') as SpeechType,
+          eventName: r.event_name ?? '', date: r.speech_date ?? '',
+          location: r.location ?? '', occasion: r.occasion ?? '',
+          language: r.language ?? 'Hindi', description: r.description ?? '',
+          keyTopics: r.key_topics ?? [], keyPoints: r.key_points ?? [],
+          audioUrl: r.audio_url ?? undefined, videoUrl: r.video_url ?? undefined,
+          videoThumbnail: r.video_thumbnail ?? undefined, transcript: r.transcript ?? undefined,
+          duration: r.duration ?? '', relatedProjectIds: [],
+          isImportant: r.is_important ?? false, isPublic: r.is_public ?? false,
+          createdAt: r.created_at?.split('T')[0] ?? '',
+        })));
+      });
+  }, []);
   const [selectedSpeech, setSelectedSpeech] = useState<Speech | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<SpeechType | 'All'>('All');
@@ -43,7 +61,7 @@ export const SpeechArchivePage: React.FC = () => {
   ];
 
   const filteredSpeeches = useMemo(() => {
-    return mockSpeeches.filter(speech => {
+    return speeches.filter(speech => {
       const matchesSearch = speech.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           speech.transcript?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           speech.keyTopics.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -54,7 +72,7 @@ export const SpeechArchivePage: React.FC = () => {
                           (mediaFilter === 'Transcript' && speech.transcript);
       return matchesSearch && matchesType && matchesMedia;
     });
-  }, [searchQuery, typeFilter, mediaFilter]);
+  }, [speeches, searchQuery, typeFilter, mediaFilter]);
 
   const handleFilterChange = (filter: string) => {
     if (activeFilters.includes(filter)) {

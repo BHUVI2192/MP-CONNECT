@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mic, 
@@ -491,7 +492,26 @@ export const SpeechUploadPage: React.FC = () => {
                       <p className="text-[10px] text-slate-500 font-medium">All required information has been provided.</p>
                     </div>
                   </div>
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12">
+                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12" onClick={async () => {
+                    const { error } = await (supabase as any).from('speech_storage').insert({
+                      speech_title: formData.title,
+                      title: formData.title,
+                      type: formData.type,
+                      speech_date: formData.date || new Date().toISOString().split('T')[0],
+                      event_name: formData.eventName || null,
+                      location: formData.location || null,
+                      occasion: formData.occasion || null,
+                      language: formData.language,
+                      description: formData.description || null,
+                      key_topics: formData.keyTopics,
+                      key_points: formData.keyPoints.filter(Boolean),
+                      transcript: formData.transcript || null,
+                      is_important: formData.isImportant,
+                      is_public: formData.isPublic,
+                    });
+                    if (error) { console.error('[DB] uploadSpeech:', error.message, error); alert('Upload failed: ' + error.message); }
+                    else { alert('Speech uploaded successfully!'); }
+                  }}>
                     Upload Speech
                   </Button>
                 </div>

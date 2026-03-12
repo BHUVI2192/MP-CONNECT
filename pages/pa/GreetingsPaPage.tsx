@@ -1,5 +1,5 @@
-
-import React, { useState, useMemo } from 'react';
+﻿
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Gift, 
@@ -29,28 +29,54 @@ import {
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
-import { GreetingContact } from '../../types';
+import { contactsApi } from '../../hooks/useContacts';
+import { supabase } from '../../lib/supabase';
 
-// Enhanced Mock Data
-const mockContacts: (GreetingContact & { 
-  location: string; 
-  whatsappAvailable: boolean; 
+// DB contact mapped to greeting-page shape
+type GContact = {
+  id: string;          // contact_id
+  name: string;        // full_name
+  designation: string;
+  organization?: string;
+  event: 'Birthday' | 'Anniversary';
+  date: string;        // MM-DD
+  phone: string;
+  email?: string;
+  location: string;
+  whatsappAvailable: boolean;
   greetedToday: boolean;
-  avatar?: string;
-})[] = [
-  { id: '1', name: 'Shri Arun Shourie', designation: 'Former Union Minister', event: 'Birthday', date: '03-05', phone: '9876543210', email: 'arun.shourie@example.com', location: 'Seelampur / Hunsur / Mysuru', whatsappAvailable: true, greetedToday: false },
-  { id: '2', name: 'Dr. Meena Swamy', designation: 'Block Head, East Delhi', event: 'Anniversary', date: '03-05', phone: '9876543211', email: 'meena.swamy@delhi.gov.in', location: 'Rampur / Mysuru / Mysuru', whatsappAvailable: true, greetedToday: true },
-  { id: '3', name: 'Hon. Speaker Om Birla', designation: 'LS Speaker', event: 'Birthday', date: '03-06', phone: '9876543212', location: 'City / Mysuru / Mysuru', whatsappAvailable: false, greetedToday: false },
-  { id: '4', name: 'Shri Nitin Gadkari', designation: 'Union Minister', event: 'Birthday', date: '03-05', phone: '9876543213', email: 'nitin.g@nic.in', location: 'Nagpur / MH', whatsappAvailable: true, greetedToday: false },
-  { id: '5', name: 'Smt. Nirmala Sitharaman', designation: 'Finance Minister', event: 'Anniversary', date: '03-05', phone: '9876543214', location: 'New Delhi', whatsappAvailable: true, greetedToday: false },
-  { id: '6', name: 'Shri Amit Shah', designation: 'Home Minister', event: 'Birthday', date: '03-10', phone: '9876543215', location: 'New Delhi', whatsappAvailable: true, greetedToday: false },
-];
+};
 
-const mockHistory = [
-  { id: 'h1', date: '2026-03-04', name: 'Shri Rajnath Singh', occasion: 'Birthday', channel: 'WhatsApp', status: 'Delivered' },
-  { id: 'h2', date: '2026-03-04', name: 'Smt. Smriti Irani', occasion: 'Anniversary', channel: 'SMS', status: 'Sent' },
-  { id: 'h3', date: '2026-03-03', name: 'Shri Piyush Goyal', occasion: 'Birthday', channel: 'Email', status: 'Failed' },
-];
+type HistoryLog = {
+  id: string;
+  created_at: string;
+  contact_name: string;
+  occasion: string;
+  channel: string;
+  status: string;
+};
+
+function dbContactToGreeting(
+  c: any,
+  event: 'Birthday' | 'Anniversary',
+  greetedIds: Set<string>
+): GContact {
+  const parts = [c.location_village, c.location_taluk, c.zilla, c.state].filter(Boolean);
+  return {
+    id: c.contact_id,
+    name: c.full_name,
+    designation: c.designation ?? '',
+    organization: c.organization ?? '',
+    event,
+    date: event === 'Birthday' ? (c.birthday ?? '') : (c.anniversary ?? ''),
+    phone: c.mobile ?? '',
+    email: c.email ?? undefined,
+    location: parts.join(' / ') || 'Location unknown',
+    whatsappAvailable: true,
+    greetedToday: greetedIds.has(c.contact_id),
+  };
+}
+
 
 export const GreetingsPaPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'birthdays' | 'anniversaries' | 'upcoming' | 'history'>('birthdays');
@@ -60,39 +86,105 @@ export const GreetingsPaPage: React.FC = () => {
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [bulkReport, setBulkReport] = useState<{ sent: number; failed: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // DB state
+  const [todayBirthdays, setTodayBirthdays] = useState<GContact[]>([]);
+  const [todayAnniversaries, setTodayAnniversaries] = useState<GContact[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<HistoryLog[]>([]);
+  const [allContacts, setAllContacts] = useState<GContact[]>([]); // for upcoming tab
 
   // Individual Greeting Modal State
   const [greetingChannel, setGreetingChannel] = useState<'whatsapp' | 'sms' | 'call' | 'email'>('whatsapp');
   const [messageTemplate, setMessageTemplate] = useState('Wishing you a very happy birthday! May you have a wonderful year ahead filled with health and happiness.');
 
-  const today = '03-05'; // Simulated today's date based on runtime context
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const currentYear = new Date().getFullYear();
+    const today = `${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
-  const todayBirthdays = useMemo(() => mockContacts.filter(c => c.event === 'Birthday' && c.date === today), []);
-  const todayAnniversaries = useMemo(() => mockContacts.filter(c => c.event === 'Anniversary' && c.date === today), []);
-  
+    const [{ data: bdContacts }, { data: anniContacts }, { data: logs }, { data: allCts }] = await Promise.all([
+      contactsApi.getTodaysBirthdays(),
+      contactsApi.getTodaysAnniversaries(),
+      (supabase as any).from('greeting_logs').select('*').eq('greeted_year', currentYear).order('created_at', { ascending: false }).limit(100),
+      (supabase as any).from('contacts').select('contact_id, full_name, designation, organization, mobile, email, birthday, anniversary, location_village, location_taluk, zilla, state').is('deleted_at', null).limit(500),
+    ]);
+
+    const greetedIds = new Set<string>((logs ?? []).map((l: any) => l.contact_id).filter(Boolean));
+
+    setTodayBirthdays((bdContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Birthday', greetedIds)));
+    setTodayAnniversaries((anniContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Anniversary', greetedIds)));
+    setHistoryLogs((logs ?? []) as HistoryLog[]);
+
+    // Build upcoming contacts from all contacts (next 7 days)
+    const upcoming: GContact[] = [];
+    const today_mmdd = today;
+    for (const c of (allCts ?? [])) {
+      if (c.birthday) upcoming.push(dbContactToGreeting(c, 'Birthday', greetedIds));
+      if (c.anniversary) upcoming.push(dbContactToGreeting(c, 'Anniversary', greetedIds));
+    }
+    setAllContacts(upcoming);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const allGreetingContacts = useMemo(() => [...todayBirthdays, ...todayAnniversaries], [todayBirthdays, todayAnniversaries]);
+
+
   const pendingBirthdays = todayBirthdays.filter(c => !c.greetedToday).length;
   const pendingAnniversaries = todayAnniversaries.filter(c => !c.greetedToday).length;
 
-  const handleSelectAll = (list: any[]) => {
+  const saveGreetingLog = async (contactId: string, contactName: string, occasion: string, channel: string) => {
+    const currentYear = new Date().getFullYear();
+    await (supabase as any).from('greeting_logs').insert({
+      contact_id: contactId,
+      contact_name: contactName,
+      occasion,
+      channel: channel.charAt(0).toUpperCase() + channel.slice(1),
+      status: 'Sent',
+      greeted_year: currentYear,
+    });
+    // Mark as greeted in local state
+    setTodayBirthdays(prev => prev.map(c => c.id === contactId ? { ...c, greetedToday: true } : c));
+    setTodayAnniversaries(prev => prev.map(c => c.id === contactId ? { ...c, greetedToday: true } : c));
+  };
+
+  const handleToggleSelectAll = (list: GContact[]) => {
     if (selectedContacts.length === list.length) {
       setSelectedContacts([]);
     } else {
-      setSelectedContacts(list.map(c => c.id));
+      setSelectedContacts(list.map((c: GContact) => c.id));
     }
   };
 
-  const handleSendBulk = async () => {
+  const handleSendBulk = async (_list: GContact[]) => {
     setBulkProgress({ current: 0, total: selectedContacts.length });
-    for (let i = 1; i <= selectedContacts.length; i++) {
-      await new Promise(r => setTimeout(r, 400));
-      setBulkProgress({ current: i, total: selectedContacts.length });
+    const currentYear = new Date().getFullYear();
+    for (let i = 0; i < selectedContacts.length; i++) {
+      const cid = selectedContacts[i];
+      const contact = allGreetingContacts.find(c => c.id === cid);
+      if (contact) {
+        await (supabase as any).from('greeting_logs').insert({
+          contact_id: cid,
+          contact_name: contact.name,
+          occasion: contact.event,
+          channel: 'WhatsApp',
+          status: 'Sent',
+          greeted_year: currentYear,
+        });
+        setTodayBirthdays(prev => prev.map(c => c.id === cid ? { ...c, greetedToday: true } : c));
+        setTodayAnniversaries(prev => prev.map(c => c.id === cid ? { ...c, greetedToday: true } : c));
+      }
+      setBulkProgress({ current: i + 1, total: selectedContacts.length });
     }
     setBulkReport({ sent: selectedContacts.length, failed: 0 });
     setBulkProgress(null);
     setSelectedContacts([]);
   };
 
-  const renderContactCard = (contact: typeof mockContacts[0]) => (
+
+  const renderContactCard = (contact: GContact) => (
     <div key={contact.id} className="flex items-center gap-4 p-5 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative">
@@ -106,7 +198,7 @@ export const GreetingsPaPage: React.FC = () => {
         
         <div className="relative">
           <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xl overflow-hidden border-2 border-white shadow-sm">
-            {contact.avatar ? <img src={contact.avatar} alt={contact.name} /> : contact.name.split(' ').map(n => n[0]).join('')}
+            {contact.name.split(' ').map(n => n[0]).join('')}
           </div>
           {contact.whatsappAvailable && (
             <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full" title="WhatsApp Online" />
@@ -122,7 +214,7 @@ export const GreetingsPaPage: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 font-bold truncate">{contact.designation} • {contact.organization}</p>
+          <p className="text-xs text-slate-500 font-bold truncate">{contact.designation} â€¢ {contact.organization}</p>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> {contact.location}
           </p>
@@ -170,6 +262,12 @@ export const GreetingsPaPage: React.FC = () => {
         </Button>
       </header>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+        </div>
+      ) : (
+      <>
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
         {[
@@ -203,7 +301,7 @@ export const GreetingsPaPage: React.FC = () => {
                 <input 
                   type="checkbox" 
                   checked={selectedContacts.length === todayBirthdays.length && todayBirthdays.length > 0}
-                  onChange={() => handleSelectAll(todayBirthdays)}
+                  onChange={() => handleToggleSelectAll(todayBirthdays)}
                   className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Select All Birthdays</span>
@@ -223,7 +321,7 @@ export const GreetingsPaPage: React.FC = () => {
                 <input 
                   type="checkbox" 
                   checked={selectedContacts.length === todayAnniversaries.length && todayAnniversaries.length > 0}
-                  onChange={() => handleSelectAll(todayAnniversaries)}
+                  onChange={() => handleToggleSelectAll(todayAnniversaries)}
                   className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Select All Anniversaries</span>
@@ -242,7 +340,7 @@ export const GreetingsPaPage: React.FC = () => {
               const date = new Date();
               date.setDate(date.getDate() + i);
               const dateStr = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-              const dayContacts = mockContacts.filter(c => c.date === dateStr);
+              const dayContacts = allContacts.filter(c => c.date === dateStr);
               
               return (
                 <div key={i} className="space-y-4">
@@ -315,10 +413,10 @@ export const GreetingsPaPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {mockHistory.map((item) => (
+                  {historyLogs.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5 text-sm font-bold text-slate-600">{item.date}</td>
-                      <td className="px-8 py-5 text-sm font-black text-slate-900">{item.name}</td>
+                      <td className="px-8 py-5 text-sm font-bold text-slate-600">{item.created_at?.split('T')[0]}</td>
+                      <td className="px-8 py-5 text-sm font-black text-slate-900">{item.contact_name}</td>
                       <td className="px-8 py-5">
                         <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest">{item.occasion}</span>
                       </td>
@@ -382,11 +480,11 @@ export const GreetingsPaPage: React.FC = () => {
                 <div className="flex justify-between items-start mb-8">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-2xl">
-                      {mockContacts.find(c => c.id === showGreetingModal)?.name.split(' ').map(n => n[0]).join('')}
+                      {allGreetingContacts.find(c => c.id === showGreetingModal)?.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{mockContacts.find(c => c.id === showGreetingModal)?.name}</h3>
-                      <p className="text-sm text-slate-500 font-medium">{mockContacts.find(c => c.id === showGreetingModal)?.designation}</p>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{allGreetingContacts.find(c => c.id === showGreetingModal)?.name}</h3>
+                      <p className="text-sm text-slate-500 font-medium">{allGreetingContacts.find(c => c.id === showGreetingModal)?.designation}</p>
                     </div>
                   </div>
                   <button onClick={() => setShowGreetingModal(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X className="w-6 h-6" /></button>
@@ -419,7 +517,7 @@ export const GreetingsPaPage: React.FC = () => {
                         <Phone className="w-10 h-10" />
                       </div>
                       <div className="space-y-2">
-                        <p className="text-2xl font-black text-slate-900">{mockContacts.find(c => c.id === showGreetingModal)?.phone}</p>
+                        <p className="text-2xl font-black text-slate-900">{allGreetingContacts.find(c => c.id === showGreetingModal)?.phone}</p>
                         <p className="text-sm text-slate-500 font-medium tracking-tight">Ready to initiate call from connected device</p>
                       </div>
                       <Button fullWidth size="lg" className="rounded-2xl h-16 text-lg font-black uppercase tracking-widest">
@@ -437,7 +535,11 @@ export const GreetingsPaPage: React.FC = () => {
                           className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
                         />
                       </div>
-                      <Button fullWidth size="lg" className="rounded-2xl h-14 font-black uppercase tracking-widest" onClick={() => setShowGreetingModal(null)}>
+                      <Button fullWidth size="lg" className="rounded-2xl h-14 font-black uppercase tracking-widest" onClick={async () => {
+                        const contact = allGreetingContacts.find(c => c.id === showGreetingModal);
+                        if (contact) await saveGreetingLog(contact.id, contact.name, contact.event, greetingChannel);
+                        setShowGreetingModal(null);
+                      }}>
                         Send Greeting via {greetingChannel.toUpperCase()}
                       </Button>
                     </>
@@ -489,7 +591,7 @@ export const GreetingsPaPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <Button fullWidth size="lg" className="rounded-2xl h-14 font-black uppercase tracking-widest" onClick={handleSendBulk}>
+                    <Button fullWidth size="lg" className="rounded-2xl h-14 font-black uppercase tracking-widest" onClick={() => handleSendBulk(allGreetingContacts)}>
                       Confirm & Send All
                     </Button>
                   </div>
@@ -553,6 +655,9 @@ export const GreetingsPaPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      </>
+      )}
     </div>
   );
 };
+

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
-import { MOCK_CONTACTS } from '../../mockData';
+import { contactsApi } from '../../hooks/useContacts';
 import { Contact, TourPackage, Destination } from '../../types';
 
 const STEPS = [
@@ -46,6 +46,19 @@ const MOCK_DESTINATIONS: Destination[] = [
 
 export const ScheduleTourWizard: React.FC = () => {
   const navigate = useNavigate();
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  useEffect(() => {
+    contactsApi.list().then(({ data }: any) => {
+      if (data) setAllContacts(data.map((r: any) => ({
+        id: r.contact_id, name: r.full_name, designation: r.designation ?? '',
+        organization: r.organization ?? '', category: r.category ?? 'Other',
+        state: r.state ?? '', zilla: r.zilla ?? '', taluk: r.location_taluk ?? '',
+        gp: r.gram_panchayat ?? '', village: r.location_village ?? '',
+        mobile: r.mobile ?? '', email: r.email ?? undefined, isVip: r.is_vip ?? false,
+        createdAt: r.created_at?.split('T')[0] ?? '',
+      })));
+    });
+  }, []);
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   
@@ -96,18 +109,18 @@ export const ScheduleTourWizard: React.FC = () => {
   // Step 3 Search
   const inviterResults = useMemo(() => {
     if (!inviterSearch || inviterSearch.length < 2) return [];
-    return MOCK_CONTACTS.filter(c => 
+    return allContacts.filter(c => 
       c.name.toLowerCase().includes(inviterSearch.toLowerCase()) ||
       c.mobile.includes(inviterSearch)
     );
   }, [inviterSearch]);
 
-  const selectedInviter = MOCK_CONTACTS.find(c => c.id === formData.inviterId);
+  const selectedInviter = allContacts.find(c => c.id === formData.inviterId);
 
   // Step 4 Search
   const participantResults = useMemo(() => {
     if (!participantSearch || participantSearch.length < 2) return [];
-    return MOCK_CONTACTS.filter(c => 
+    return allContacts.filter(c => 
       (c.name.toLowerCase().includes(participantSearch.toLowerCase()) ||
       c.mobile.includes(participantSearch)) &&
       !formData.participants.find(p => p.id === c.id)

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
-import { MOCK_PROJECTS } from '../mockProjects';
+import { devWorksApi } from '../hooks/useDevelopmentWorks';
 import { Project } from '../types';
 
 const SECTORS = [
@@ -103,6 +103,29 @@ export const DevelopmentWorksBrowsePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isPa = location.pathname.includes('/pa/');
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  useEffect(() => {
+    devWorksApi.list().then(({ data }: any) => {
+      if (data) {
+        const statusMap: Record<string, Project['status']> = {
+          PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
+          COMPLETED: 'Completed', ON_HOLD: 'On Hold',
+        };
+        setAllProjects(data.map((r: any) => ({
+          id: r.work_id, name: r.work_title, category: r.sector ?? 'Other',
+          status: statusMap[r.status] ?? 'Planned', progress: r.progress_pct ?? 0,
+          budget: r.sanctioned_amount ?? r.estimated_cost ?? 0,
+          zilla: r.zilla ?? '', taluk: r.taluk ?? '', gp: r.gram_panchayat ?? '',
+          village: r.village ?? '', sanctionOrderNo: r.scheme_name ?? '',
+          startDate: r.start_date ?? '', completionDate: r.target_date ?? undefined,
+          beneficiaries: 0, description: '',
+          photos: (r.development_work_media ?? []).filter((m: any) => m.media_type === 'PHOTO').map((m: any) => ({
+            url: m.storage_path, caption: m.file_name ?? '',
+          })),
+        })));
+      }
+    });
+  }, []);
   const [browseMode, setBrowseMode] = useState<'sector' | 'location'>('sector');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
@@ -115,11 +138,11 @@ export const DevelopmentWorksBrowsePage: React.FC = () => {
   };
 
   const filteredProjects = useMemo(() => {
-    return MOCK_PROJECTS.filter(p => 
+    return allProjects.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.village.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [allProjects, searchQuery]);
 
   const sectorProjects = useMemo(() => {
     if (!selectedSector) return [];
@@ -207,7 +230,7 @@ export const DevelopmentWorksBrowsePage: React.FC = () => {
             {!selectedSector ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {SECTORS.map((sector) => {
-                  const count = MOCK_PROJECTS.filter(p => p.category === sector.id).length;
+                  const count = allProjects.filter(p => p.category === sector.id).length;
                   return (
                     <Card 
                       key={sector.id}

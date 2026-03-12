@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -8,117 +8,87 @@ import {
   Users, 
   Mic, 
   Play, 
-  Pause, 
   CheckCircle2, 
-  XCircle, 
-  MoreVertical,
   ChevronRight,
   RotateCcw,
   Check,
   X,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
-import { PlanEvent, PlanEventStatus, PersonInvolved, NotificationType } from '../../types';
+import { PlanTodayEvent, PlanTodayAttendee, NotificationType } from '../../types';
+import { useMockData } from '../../context/MockDataContext';
 import { useNotifications } from '../../context/NotificationContext';
 
-// Mock data for initial state
-const MOCK_EVENTS: PlanEvent[] = [
-  {
-    id: '1',
-    title: 'Morning Briefing with Security Detail',
-    type: 'MEETING',
-    scheduledTime: '08:00',
-    displayTime: '8:00 AM',
-    duration: 30,
-    locationName: 'MP Residence Office',
-    address: '12, Ashoka Road, New Delhi',
-    purpose: 'Review security protocols for the day',
-    people: [
-      { id: 'p1', name: 'Inspector Sharma', designation: 'Security Head', contact: '9876543210' }
-    ],
-    status: 'VISITED',
-    finalNotes: 'All protocols reviewed. No issues found.'
-  },
-  {
-    id: '2',
-    title: 'Site Inspection: New Flyover Project',
-    type: 'INSPECTION',
-    scheduledTime: '10:30',
-    displayTime: '10:30 AM',
-    duration: 90,
-    locationName: 'Sarita Vihar Crossing',
-    address: 'Sarita Vihar, New Delhi',
-    purpose: 'Check progress of the pillar construction',
-    people: [
-      { id: 'p2', name: 'Er. Amit Kumar', designation: 'Project Manager', contact: '9876543211' },
-      { id: 'p3', name: 'Sanjay Singh', designation: 'Local Contractor', contact: '9876543212' }
-    ],
-    status: 'IN_PROGRESS',
-    notes: 'Pillar 4 and 5 are 80% complete. Need to speed up the girder placement.'
-  },
-  {
-    id: '3',
-    title: 'Meeting with RWA Representatives',
-    type: 'MEETING',
-    scheduledTime: '14:00',
-    displayTime: '2:00 PM',
-    duration: 60,
-    locationName: 'Community Center, Sector 7',
-    address: 'Sector 7, Rohini, New Delhi',
-    purpose: 'Discuss water supply issues in the area',
-    people: [
-      { id: 'p4', name: 'Mrs. Gupta', designation: 'RWA President', contact: '9876543213' }
-    ],
-    status: 'SCHEDULED'
-  },
-  {
-    id: '4',
-    title: 'Public Visit: Government School #4',
-    type: 'VISIT',
-    scheduledTime: '16:30',
-    displayTime: '4:30 PM',
-    duration: 45,
-    locationName: 'Govt Boys Sr Sec School',
-    address: 'Dwarka Sector 3, New Delhi',
-    purpose: 'Inaugurate new computer lab',
-    people: [],
-    status: 'SCHEDULED'
-  }
-];
+type DaybookStatus = PlanTodayEvent['status'];
 
-const STATUS_COLORS: Record<PlanEventStatus, string> = {
-  SCHEDULED: 'border-blue-500',
-  IN_PROGRESS: 'border-orange-500',
-  VISITED: 'border-emerald-500',
-  CANCELLED: 'border-red-500',
-  DRAFT: 'border-slate-300'
+const STATUS_COLORS: Record<DaybookStatus, string> = {
+  Scheduled: 'border-blue-500',
+  In_Progress: 'border-orange-500',
+  Visited: 'border-emerald-500',
+  Completed: 'border-emerald-500',
+  Cancelled: 'border-red-500',
 };
 
-const STATUS_BADGES: Record<PlanEventStatus, string> = {
-  SCHEDULED: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-orange-100 text-orange-700',
-  VISITED: 'bg-emerald-100 text-emerald-700',
-  CANCELLED: 'bg-red-100 text-red-700',
-  DRAFT: 'bg-slate-100 text-slate-700'
+const STATUS_BADGES: Record<DaybookStatus, string> = {
+  Scheduled: 'bg-blue-100 text-blue-700',
+  In_Progress: 'bg-orange-100 text-orange-700',
+  Visited: 'bg-emerald-100 text-emerald-700',
+  Completed: 'bg-emerald-100 text-emerald-700',
+  Cancelled: 'bg-red-100 text-red-700',
+};
+
+const STATUS_LABELS: Record<DaybookStatus, string> = {
+  Scheduled: 'Scheduled',
+  In_Progress: 'In Progress',
+  Visited: 'Visited',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
+};
+
+const formatTime = (time: string): string => {
+  const [h, m] = time.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
 };
 
 export const DaybookPage: React.FC = () => {
+  const { events, updateEvent } = useMockData();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState<'today' | 'past'>('today');
-  const [events, setEvents] = useState<PlanEvent[]>(MOCK_EVENTS);
-  const [selectedEvent, setSelectedEvent] = useState<PlanEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<PlanTodayEvent | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const completedCount = useMemo(() => 
-    events.filter(e => e.status === 'VISITED' || e.status === 'CANCELLED').length, 
-  [events]);
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  const totalCount = events.length;
+  const todayEvents = useMemo(() =>
+    events
+      .filter(e => e.date === todayStr)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [events, todayStr]
+  );
+
+  const pastEventsByDate = useMemo(() => {
+    const past = events.filter(e => e.date < todayStr).sort((a, b) =>
+      b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime)
+    );
+    const grouped: Record<string, PlanTodayEvent[]> = {};
+    past.forEach(e => { grouped[e.date] = [...(grouped[e.date] || []), e]; });
+    return grouped;
+  }, [events, todayStr]);
+
+  const completedCount = useMemo(() =>
+    todayEvents.filter(e => e.status === 'Visited' || e.status === 'Completed' || e.status === 'Cancelled').length,
+    [todayEvents]
+  );
+
+  const totalCount = todayEvents.length;
   const progressPercentage = (completedCount / totalCount) * 100;
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -126,35 +96,37 @@ export const DaybookPage: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleUpdateDetails = (id: string, updates: Partial<PlanEvent>) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
-    const event = events.find(e => e.id === id);
-    if (event) {
-      addNotification({
-        eventId: id,
-        eventName: event.title,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'UPDATE',
-        notes: updates.notes || updates.transcript,
-        voiceNoteUrl: updates.voiceNoteUrl
-      });
-      showToast(`Staff notified of update to ${event.title}`);
-    }
+  const handleUpdateDetails = (event: PlanTodayEvent, textNotes: string) => {
+    const updated: PlanTodayEvent = {
+      ...event,
+      documentation: { ...event.documentation, textNotes },
+    };
+    updateEvent(updated);
+    addNotification({
+      eventId: event.id,
+      eventName: event.title,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'UPDATE',
+      notes: textNotes,
+    });
+    showToast(`Staff notified of update to ${event.title}`);
   };
 
-  const handleMarkStatus = (id: string, status: 'VISITED' | 'CANCELLED', finalData: Partial<PlanEvent>) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, status, ...finalData } : e));
-    const event = events.find(e => e.id === id);
-    if (event) {
-      addNotification({
-        eventId: id,
-        eventName: event.title,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: status as NotificationType,
-        notes: finalData.finalNotes || finalData.cancellationReason
-      });
-      showToast(`Staff notified — ${event.title} marked as ${status}`);
-    }
+  const handleMarkStatus = (event: PlanTodayEvent, status: 'Visited' | 'Cancelled', notes: string) => {
+    const updated: PlanTodayEvent = {
+      ...event,
+      status,
+      documentation: { ...event.documentation, summary: notes },
+    };
+    updateEvent(updated);
+    addNotification({
+      eventId: event.id,
+      eventName: event.title,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: status === 'Visited' ? 'VISITED' : 'CANCELLED',
+      notes,
+    });
+    showToast(`Staff notified — ${event.title} marked as ${status}`);
   };
 
   return (
@@ -200,38 +172,76 @@ export const DaybookPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-slate-700">{completedCount} of {totalCount} events completed today</span>
-            <span className="text-sm font-black text-indigo-600">{Math.round(progressPercentage)}%</span>
+        {/* Progress Indicator (today tab only) */}
+        {activeTab === 'today' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-slate-700">{completedCount} of {totalCount} events completed today</span>
+              <span className="text-sm font-black text-indigo-600">{Math.round(progressPercentage)}%</span>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                className="h-full bg-indigo-600 rounded-full"
+              />
+            </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercentage}%` }}
-              className="h-full bg-indigo-600 rounded-full"
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Event List */}
-        <div className="space-y-4">
-          {events.map((event) => (
-            <EventCard 
-              key={event.id} 
-              event={event} 
-              onUpdate={() => {
-                setSelectedEvent(event);
-                setIsUpdateModalOpen(true);
-              }}
-              onMarkStatus={() => {
-                setSelectedEvent(event);
-                setIsStatusModalOpen(true);
-              }}
-            />
-          ))}
-        </div>
+        {/* Event List - Today */}
+        {activeTab === 'today' && (
+          <div className="space-y-4">
+            {todayEvents.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+                <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 mb-1">No events planned for today</h3>
+                <p className="text-slate-500 text-sm">Use the Plan Today page to add events to the schedule.</p>
+              </div>
+            ) : (
+              todayEvents.map((event) => (
+                <EventCard 
+                  key={event.id} 
+                  event={event} 
+                  onUpdate={() => {
+                    setSelectedEvent(event);
+                    setIsUpdateModalOpen(true);
+                  }}
+                  onMarkStatus={() => {
+                    setSelectedEvent(event);
+                    setIsStatusModalOpen(true);
+                  }}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Past Events grouped by date */}
+        {activeTab === 'past' && (
+          <div className="space-y-6">
+            {Object.keys(pastEventsByDate).length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+                <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 mb-1">No past events</h3>
+                <p className="text-slate-500 text-sm">Events from previous days will appear here.</p>
+              </div>
+            ) : (
+              Object.entries(pastEventsByDate).map(([date, dateEvents]) => (
+                <div key={date}>
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
+                    {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </h3>
+                  <div className="space-y-3">
+                    {dateEvents.map(event => (
+                      <EventCard key={event.id} event={event} onUpdate={() => {}} onMarkStatus={() => {}} readOnly />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -240,8 +250,8 @@ export const DaybookPage: React.FC = () => {
           <UpdateDetailsModal 
             event={selectedEvent} 
             onClose={() => setIsUpdateModalOpen(false)}
-            onSave={(updates) => {
-              handleUpdateDetails(selectedEvent.id, updates);
+            onSave={(textNotes) => {
+              handleUpdateDetails(selectedEvent, textNotes);
               setIsUpdateModalOpen(false);
             }}
           />
@@ -250,8 +260,8 @@ export const DaybookPage: React.FC = () => {
           <MarkStatusModal 
             event={selectedEvent} 
             onClose={() => setIsStatusModalOpen(false)}
-            onConfirm={(status, finalData) => {
-              handleMarkStatus(selectedEvent.id, status, finalData);
+            onConfirm={(status, notes) => {
+              handleMarkStatus(selectedEvent, status, notes);
               setIsStatusModalOpen(false);
             }}
           />
@@ -262,11 +272,12 @@ export const DaybookPage: React.FC = () => {
 };
 
 const EventCard: React.FC<{ 
-  event: PlanEvent; 
+  event: PlanTodayEvent; 
   onUpdate: () => void; 
   onMarkStatus: () => void;
-}> = ({ event, onUpdate, onMarkStatus }) => {
-  const isFinished = event.status === 'VISITED' || event.status === 'CANCELLED';
+  readOnly?: boolean;
+}> = ({ event, onUpdate, onMarkStatus, readOnly }) => {
+  const isFinished = event.status === 'Visited' || event.status === 'Completed' || event.status === 'Cancelled';
 
   return (
     <Card className={`border-l-4 transition-all hover:shadow-md ${STATUS_COLORS[event.status]}`}>
@@ -274,36 +285,36 @@ const EventCard: React.FC<{
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_BADGES[event.status]}`}>
-              {event.status}
+              {STATUS_LABELS[event.status]}
             </span>
             <div className="flex items-center gap-1 text-xs text-slate-400">
               <Clock className="w-3 h-3" />
-              {event.displayTime}
+              {formatTime(event.startTime)}
             </div>
           </div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">{event.title}</h3>
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
             <MapPin className="w-4 h-4 text-slate-400" />
-            {event.locationName}
+            {event.location?.name || '—'}
           </div>
 
           <div className="flex items-center gap-4">
-            {/* People Avatars */}
+            {/* Attendee Avatars */}
             <div className="flex -space-x-2">
-              {event.people.slice(0, 3).map((p, i) => (
+              {(event.attendees || []).slice(0, 3).map((p) => (
                 <div key={p.id} className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600" title={p.name}>
                   {p.name.charAt(0)}
                 </div>
               ))}
-              {event.people.length > 3 && (
+              {(event.attendees || []).length > 3 && (
                 <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-400">
-                  +{event.people.length - 3}
+                  +{(event.attendees || []).length - 3}
                 </div>
               )}
             </div>
 
             {/* Voice Note Indicator */}
-            {event.voiceNoteUrl && (
+            {event.documentation?.hasVoiceNote && (
               <div className="flex items-center gap-1.5 text-indigo-600 text-xs font-bold cursor-pointer hover:underline">
                 <Mic className="w-3.5 h-3.5" />
                 Play Recording
@@ -313,7 +324,7 @@ const EventCard: React.FC<{
         </div>
 
         <div className="flex flex-col gap-2 min-w-[140px]">
-          {!isFinished ? (
+          {(!isFinished && !readOnly) ? (
             <>
               <Button variant="outline" size="sm" onClick={onUpdate}>
                 Update Details
@@ -326,11 +337,11 @@ const EventCard: React.FC<{
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Summary</p>
               <p className="text-xs text-slate-600 line-clamp-2 italic">
-                {event.status === 'VISITED' ? event.finalNotes || 'Completed as planned.' : event.cancellationReason || 'Event cancelled.'}
+                {event.documentation?.summary || (event.status === 'Cancelled' ? 'Event cancelled.' : 'Completed as planned.')}
               </p>
-              <button className="text-indigo-600 text-[10px] font-bold mt-2 hover:underline flex items-center gap-0.5">
-                View Details <ChevronRight className="w-3 h-3" />
-              </button>
+              {event.documentation?.textNotes && (
+                <p className="text-xs text-slate-500 mt-1 line-clamp-1 italic">"{event.documentation.textNotes}"</p>
+              )}
             </div>
           )}
         </div>
@@ -340,12 +351,12 @@ const EventCard: React.FC<{
 };
 
 const UpdateDetailsModal: React.FC<{ 
-  event: PlanEvent; 
+  event: PlanTodayEvent; 
   onClose: () => void; 
-  onSave: (updates: Partial<PlanEvent>) => void;
+  onSave: (textNotes: string) => void;
 }> = ({ event, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text');
-  const [notes, setNotes] = useState(event.notes || '');
+  const [notes, setNotes] = useState(event.documentation?.textNotes || '');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingComplete, setRecordingComplete] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -421,7 +432,7 @@ const UpdateDetailsModal: React.FC<{
                 placeholder="Enter real-time updates or notes here..."
                 className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
               />
-              <Button fullWidth onClick={() => onSave({ notes })}>
+              <Button fullWidth onClick={() => onSave(notes)}>
                 Save & Notify Staff
               </Button>
             </div>
@@ -499,7 +510,7 @@ const UpdateDetailsModal: React.FC<{
                   )}
 
                   {transcript && (
-                    <Button fullWidth onClick={() => onSave({ transcript, voiceNoteUrl: 'mock-url' })}>
+                    <Button fullWidth onClick={() => onSave(transcript)}>
                       Save & Notify Staff
                     </Button>
                   )}
@@ -514,9 +525,9 @@ const UpdateDetailsModal: React.FC<{
 };
 
 const MarkStatusModal: React.FC<{ 
-  event: PlanEvent; 
+  event: PlanTodayEvent; 
   onClose: () => void; 
-  onConfirm: (status: 'VISITED' | 'CANCELLED', data: Partial<PlanEvent>) => void;
+  onConfirm: (status: 'Visited' | 'Cancelled', notes: string) => void;
 }> = ({ event, onClose, onConfirm }) => {
   const [selection, setSelection] = useState<'attended' | 'not-attended' | null>(null);
   const [notes, setNotes] = useState('');
@@ -603,7 +614,7 @@ const MarkStatusModal: React.FC<{
                 </Button>
                 <Button 
                   className={`flex-1 ${selection === 'attended' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
-                  onClick={() => onConfirm(selection === 'attended' ? 'VISITED' : 'CANCELLED', selection === 'attended' ? { finalNotes: notes } : { cancellationReason: notes })}
+                  onClick={() => onConfirm(selection === 'attended' ? 'Visited' : 'Cancelled', notes)}
                 >
                   {selection === 'attended' ? 'Submit Final Details' : 'Confirm Cancellation'}
                 </Button>

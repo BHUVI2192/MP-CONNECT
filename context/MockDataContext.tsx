@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Letter, Complaint, Project, TourProgram, PlanTodayEvent, Contact } from '../types';
+import { supabase } from '../lib/supabase';
 
 // Define the shape of our context
 interface MockDataContextType {
@@ -40,145 +41,353 @@ export const useMockData = () => {
     return context;
 };
 
-// Initial Data
-const initialComplaints: Complaint[] = [
-    { id: 'CMP-101', description: 'Large potholes causing traffic.', status: 'New', category: 'Roads', location: 'Sector 4', createdAt: '2024-05-20', citizenName: 'John Doe', priority: 'High' },
-    { id: 'CMP-102', description: 'Lights not working in Block C.', status: 'Verified', category: 'Electricity', location: 'Block C', createdAt: '2024-05-19', citizenName: 'Jane Smith', priority: 'Medium' },
-];
 
-const initialLetters: Letter[] = [
-    { id: 'LTR-2024-001', type: 'Central', department: 'Finance', title: 'Fund Release Request', content: 'Request to release funds...', status: 'Pending', version: 1, tags: ['Funds'], createdAt: '2024-05-20', updatedAt: '2024-05-20', senderId: 'STAFF-001' }
-];
-
-const initialTours: TourProgram[] = [
-    {
-        id: 'TOUR-2024-001',
-        title: 'Flood Relief Inspection',
-        type: 'Inspection',
-        startDate: new Date().toISOString().split('T')[0],
-        startTime: '09:00',
-        duration: '4h',
-        location: { name: 'Rampur Village', address: 'North Block' },
-        status: 'Scheduled',
-        participants: [
-            { id: 'P1', name: 'DM Rajesh', role: 'District Magistrate', contact: '9876543210', notified: true }
-        ],
-        instructions: 'Check relief kits',
-        notificationLog: [],
-        createdAt: '2024-05-20',
-        createdBy: 'PA-001'
-    }
-];
-
-const initialWorks: Project[] = [
-    { id: 'PRJ-201', name: 'NH-24 Expansion', category: 'Roads', status: 'In Progress', progress: 65, budget: 45000000, village: 'Seelampur', sanctionOrderNo: 'SO-101', startDate: '2024-01-15' }
-];
-
-const initialEvents: PlanTodayEvent[] = [
-    {
-        id: 'e-1',
-        title: 'Morning Briefing',
-        type: 'Meeting',
-        date: new Date().toISOString().split('T')[0],
-        startTime: '09:00',
-        duration: '1h',
-        location: { name: 'MP Office', address: 'Civil Lines' },
-        attendees: [],
-        purpose: 'Daily planning',
-        status: 'Scheduled',
-        createdAt: new Date().toISOString(),
-        createdBy: 'u-pa-1'
-    },
-    {
-        id: 'e-2',
-        title: 'Site Inspection',
-        type: 'Inspection',
-        date: new Date().toISOString().split('T')[0],
-        startTime: '10:30',
-        duration: '1h',
-        location: { name: 'Green Park', address: 'Sector 4' },
-        attendees: [],
-        purpose: 'Inspect construction',
-        status: 'Scheduled',
-        createdAt: new Date().toISOString(),
-        createdBy: 'u-pa-1'
-    }
-];
-
-const initialContacts: Contact[] = [
-    {
-        id: '1',
-        name: 'Dr. Rajesh Kumar',
-        designation: 'District Magistrate',
-        organization: 'District Administration',
-        category: 'Government Official',
-        state: 'Karnataka',
-        zilla: 'Mysuru',
-        taluk: 'Mysuru',
-        gp: 'City',
-        village: 'Mysuru',
-        mobile: '9876543210',
-        email: 'dm.mysuru@gov.in',
-        isVip: true,
-        photoUrl: 'https://picsum.photos/seed/rajesh/200/200',
-        createdAt: '2024-01-15',
-    },
-    {
-        id: '2',
-        name: 'Smt. Lakshmi Devi',
-        designation: 'GP President',
-        organization: 'Rampur Gram Panchayat',
-        category: 'Political Leader',
-        state: 'Karnataka',
-        zilla: 'Mysuru',
-        taluk: 'Hunsur',
-        gp: 'Rampur',
-        village: 'Rampur',
-        mobile: '9876543211',
-        email: 'lakshmi.gp@gmail.com',
-        isVip: false,
-        createdAt: '2024-02-10',
-    },
-];
 
 export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [complaints, setComplaints] = useState<Complaint[]>(initialComplaints);
-    const [letters, setLetters] = useState<Letter[]>(initialLetters);
-    const [tours, setTours] = useState<TourProgram[]>(initialTours);
-    const [works, setWorks] = useState<Project[]>(initialWorks);
-    const [events, setEvents] = useState<PlanTodayEvent[]>(initialEvents);
-    const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+    const [complaints, setComplaints] = useState<Complaint[]>([]);
+    const [letters, setLetters] = useState<Letter[]>([]);
+    const [tours, setTours] = useState<TourProgram[]>([]);
+    const [works, setWorks] = useState<Project[]>([]);
+    const [events, setEvents] = useState<PlanTodayEvent[]>([]);
+    const [contacts, setContacts] = useState<Contact[]>([]);
 
-    const addComplaint = (complaint: Complaint) => setComplaints(prev => [complaint, ...prev]);
-    const updateComplaintStatus = (id: string, status: Complaint['status'], remarks?: string) => {
-        setComplaints(prev => prev.map(c =>
-            c.id === id ? { ...c, status, staffNotes: remarks ? remarks : c.staffNotes } : c
-        ));
+    // Fetch complaints from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('complaints').select('*').order('created_at', { ascending: false })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    setComplaints(data.map((r: any) => ({
+                        id: r.id,
+                        citizenName: r.citizen_name,
+                        category: r.category,
+                        location: r.location,
+                        description: r.description,
+                        status: r.status,
+                        priority: r.priority,
+                        staffNotes: r.staff_notes ?? undefined,
+                        paInstructions: r.pa_instructions ?? undefined,
+                        assignedTo: r.assigned_to ?? undefined,
+                        createdAt: r.created_at?.split('T')[0] ?? '',
+                    })));
+                }
+            });
+    }, []);
+
+    // Fetch tours from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('tour_programs').select('*').order('start_date', { ascending: false })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    setTours(data.map((r: any) => ({
+                        id: r.id,
+                        title: r.title,
+                        type: r.type,
+                        startDate: r.start_date,
+                        startTime: r.start_time ?? '',
+                        duration: r.duration ?? '',
+                        location: { name: r.location_name ?? '', address: r.location_address ?? '' },
+                        status: r.status,
+                        participants: r.participants ?? [],
+                        instructions: r.instructions ?? '',
+                        notificationLog: r.notification_log ?? [],
+                        createdAt: r.created_at?.split('T')[0] ?? '',
+                        createdBy: r.created_by ?? '',
+                    })));
+                }
+            });
+    }, []);
+
+    // Fetch letters from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('letters').select('*').order('created_at', { ascending: false })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    setLetters(data.map((r: any) => ({
+                        id: r.id,
+                        type: r.type,
+                        department: r.department,
+                        title: r.title,
+                        content: r.content ?? '',
+                        status: r.status,
+                        version: r.version ?? 1,
+                        tags: r.tags ?? [],
+                        attachmentUrl: r.attachment_url ?? undefined,
+                        createdAt: r.created_at?.split('T')[0] ?? '',
+                        updatedAt: r.updated_at?.split('T')[0] ?? '',
+                        senderId: r.sender_id ?? '',
+                    })));
+                }
+            });
+    }, []);
+
+    // Fetch contacts from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('contacts').select('*').is('deleted_at', null).order('full_name', { ascending: true })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    setContacts(data.map((r: any) => ({
+                        id: r.contact_id,
+                        name: r.full_name,
+                        designation: r.designation ?? '',
+                        organization: r.organization ?? '',
+                        category: r.category ?? 'Other',
+                        state: r.state ?? '',
+                        zilla: r.zilla ?? '',
+                        taluk: r.taluk ?? '',
+                        gp: r.gram_panchayat ?? '',
+                        village: r.village ?? '',
+                        mobile: r.mobile ?? '',
+                        email: r.email ?? undefined,
+                        isVip: r.is_vip ?? false,
+                        createdAt: r.created_at?.split('T')[0] ?? '',
+                    })));
+                }
+            });
+    }, []);
+
+    // Fetch plan_today_events from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('plan_today_events').select('*').order('scheduled_time', { ascending: true })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    const statusMap: Record<string, PlanTodayEvent['status']> = {
+                        SCHEDULED: 'Scheduled', COMPLETED: 'Completed',
+                        CANCELLED: 'Cancelled', VISITED: 'Visited', IN_PROGRESS: 'Scheduled',
+                    };
+                    setEvents(data.map((r: any) => ({
+                        id: r.event_id,
+                        title: r.title ?? r.event_title ?? 'Untitled',
+                        type: (r.type ?? 'Visit') as PlanTodayEvent['type'],
+                        date: r.scheduled_date ?? r.event_date ?? '',
+                        startTime: r.scheduled_time ?? r.start_time ?? '',
+                        duration: r.duration ?? '1h',
+                        location: { name: r.location ?? '', address: '' },
+                        attendees: [],
+                        purpose: r.description ?? '',
+                        status: statusMap[r.status ?? 'SCHEDULED'] ?? 'Scheduled',
+                        createdAt: r.created_at ?? '',
+                        createdBy: r.pa_id ?? '',
+                    })));
+                }
+            });
+    }, []);
+
+    // Fetch development_works from Supabase on mount
+    useEffect(() => {
+        (supabase as any).from('development_works').select('*').is('deleted_at', null).order('created_at', { ascending: false })
+            .then(({ data }) => {
+                if (data && data.length > 0) {
+                    const statusMap: Record<string, Project['status']> = {
+                        PROPOSED: 'Planned', SANCTIONED: 'Planned',
+                        ONGOING: 'Ongoing', COMPLETED: 'Completed', ON_HOLD: 'On Hold',
+                    };
+                    setWorks(data.map((r: any) => ({
+                        id: r.work_id,
+                        name: r.work_title,
+                        category: r.sector ?? 'Other',
+                        status: statusMap[r.status] ?? 'Planned',
+                        progress: r.progress_pct ?? 0,
+                        budget: r.estimated_cost ?? 0,
+                        zilla: r.zilla ?? '',
+                        taluk: r.taluk ?? '',
+                        gp: r.gram_panchayat ?? '',
+                        village: r.village ?? '',
+                        sanctionOrderNo: '',
+                        startDate: r.start_date ?? '',
+                        completionDate: r.completion_date ?? undefined,
+                    })));
+                }
+            });
+    }, []);
+
+    // â”€â”€ Complaints actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addComplaint = async (complaint: Complaint) => {
+        setComplaints(prev => [complaint, ...prev]); // optimistic
+        const { data, error } = await (supabase as any).from('complaints').insert({
+            citizen_name: complaint.citizenName,
+            category: complaint.category,
+            location: complaint.location,
+            description: complaint.description,
+            status: complaint.status ?? 'New',
+            priority: complaint.priority ?? 'Medium',
+        }).select().single();
+        if (error) { console.error('[DB] addComplaint:', error.message, error); return; }
+        if (data?.id) setComplaints(prev => prev.map(c => c.id === complaint.id ? { ...c, id: data.id } : c));
     };
 
-    const addLetter = (letter: Letter) => setLetters(prev => [letter, ...prev]);
-    const updateLetterStatus = (id: string, status: Letter['status']) => {
-        setLetters(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    const updateComplaintStatus = async (id: string, status: Complaint['status'], remarks?: string) => {
+        setComplaints(prev => prev.map(c => c.id === id ? { ...c, status, staffNotes: remarks ?? c.staffNotes } : c)); // optimistic
+        const { error } = await (supabase as any).from('complaints').update({
+            status,
+            ...(remarks ? { staff_notes: remarks } : {}),
+        }).eq('id', id);
+        if (error) console.error('[DB] updateComplaintStatus:', error.message, error);
     };
 
-    const addTour = (tour: TourProgram) => setTours(prev => [tour, ...prev]);
-    const updateTour = (tour: TourProgram) => {
-        setTours(prev => prev.map(t => t.id === tour.id ? tour : t));
+    // â”€â”€ Letters actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addLetter = async (letter: Letter) => {
+        setLetters(prev => [letter, ...prev]); // optimistic
+        const { data, error } = await (supabase as any).from('letters').insert({
+            type: letter.type,
+            department: letter.department,
+            title: letter.title,
+            content: letter.content,
+            status: letter.status ?? 'Pending',
+            version: letter.version ?? 1,
+            tags: letter.tags ?? [],
+        }).select().single();
+        if (error) { console.error('[DB] addLetter:', error.message, error); return; }
+        if (data?.id) setLetters(prev => prev.map(l => l.id === letter.id ? { ...l, id: data.id } : l));
     };
 
-    const addEvent = (event: PlanTodayEvent) => setEvents(prev => [event, ...prev]);
-    const updateEvent = (event: PlanTodayEvent) => {
-        setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+    const updateLetterStatus = async (id: string, status: Letter['status']) => {
+        setLetters(prev => prev.map(l => l.id === id ? { ...l, status } : l)); // optimistic
+        const { error } = await (supabase as any).from('letters').update({ status }).eq('id', id);
+        if (error) console.error('[DB] updateLetterStatus:', error.message, error);
     };
 
-    const addWork = (work: Project) => setWorks(prev => [work, ...prev]);
-    const updateWork = (work: Project) => {
-        setWorks(prev => prev.map(w => w.id === work.id ? work : w));
+    // â”€â”€ Tours actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addTour = async (tour: TourProgram) => {
+        setTours(prev => [tour, ...prev]); // optimistic
+        const { data, error } = await (supabase as any).from('tour_programs').insert({
+            title: tour.title,
+            type: tour.type,
+            start_date: tour.startDate,
+            start_time: tour.startTime,
+            duration: tour.duration,
+            location_name: tour.location.name,
+            location_address: tour.location.address,
+            status: tour.status ?? 'Scheduled',
+            participants: tour.participants ?? [],
+            instructions: tour.instructions ?? '',
+            notification_log: tour.notificationLog ?? [],
+        }).select().single();
+        if (error) { console.error('[DB] addTour:', error.message, error); return; }
+        if (data?.id) setTours(prev => prev.map(t => t.id === tour.id ? { ...t, id: data.id } : t));
     };
 
-    const addContact = (contact: Contact) => setContacts(prev => [contact, ...prev]);
-    const updateContact = (contact: Contact) => {
-        setContacts(prev => prev.map(c => c.id === contact.id ? contact : c));
+    const updateTour = async (tour: TourProgram) => {
+        setTours(prev => prev.map(t => t.id === tour.id ? tour : t)); // optimistic
+        const { error } = await (supabase as any).from('tour_programs').update({
+            title: tour.title,
+            type: tour.type,
+            start_date: tour.startDate,
+            start_time: tour.startTime,
+            duration: tour.duration,
+            location_name: tour.location.name,
+            location_address: tour.location.address,
+            status: tour.status,
+            participants: tour.participants,
+            instructions: tour.instructions,
+        }).eq('id', tour.id);
+        if (error) console.error('[DB] updateTour:', error.message, error);
+    };
+
+    // â”€â”€ Events actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addEvent = async (event: PlanTodayEvent) => {
+        setEvents(prev => [event, ...prev]); // optimistic
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await (supabase as any).from('plan_today_events').insert({
+            event_title: event.title,   // original NOT NULL column
+            title: event.title,
+            type: event.type,
+            scheduled_date: event.date,
+            scheduled_time: event.startTime,
+            duration: event.duration,
+            location: event.location.name,
+            description: event.purpose,
+            status: 'SCHEDULED',
+            pa_id: user?.id ?? null,
+        }).select().single();
+        if (error) { console.error('[DB] addEvent:', error.message, error); return; }
+        // Swap temp ID for real server UUID
+        if (data?.event_id) setEvents(prev => prev.map(e => e.id === event.id ? { ...e, id: data.event_id } : e));
+    };
+
+    const updateEvent = async (event: PlanTodayEvent) => {
+        setEvents(prev => prev.map(e => e.id === event.id ? event : e)); // optimistic
+        const statusMap: Record<string, string> = {
+            Scheduled: 'SCHEDULED', Completed: 'COMPLETED',
+            Cancelled: 'CANCELLED', Visited: 'VISITED',
+        };
+        // Skip DB update if the ID is a temp ID (not a real UUID) â€” table not ready yet
+        if (/^e-\d+$/.test(event.id)) return;
+        const { error } = await (supabase as any).from('plan_today_events').update({
+            title: event.title,
+            scheduled_date: event.date,
+            scheduled_time: event.startTime,
+            status: statusMap[event.status] ?? 'SCHEDULED',
+        }).eq('event_id', event.id);
+        if (error) console.error('[DB] updateEvent:', error.message, error);
+    };
+
+    // â”€â”€ Works actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addWork = async (work: Project) => {
+        setWorks(prev => [work, ...prev]); // optimistic
+        const statusMap: Record<string, string> = {
+            Planned: 'PROPOSED', Ongoing: 'ONGOING', Completed: 'COMPLETED', 'On Hold': 'ON_HOLD',
+        };
+        const { data, error } = await (supabase as any).from('development_works').insert({
+            work_title: work.name,
+            sector: work.category,
+            status: statusMap[work.status] ?? 'PLANNED',
+            budget: work.budget ?? 0,
+            zilla: work.zilla ?? '',
+            taluk: work.taluk ?? '',
+            gram_panchayat: work.gp ?? '',
+            village: work.village ?? '',
+            start_date: work.startDate ?? null,
+            completion_date: work.completionDate ?? null,
+        }).select().single();
+        if (error) { console.error('[DB] addWork:', error.message, error); return; }
+        if (data?.work_id) setWorks(prev => prev.map(w => w.id === work.id ? { ...w, id: data.work_id } : w));
+    };
+
+    const updateWork = async (work: Project) => {
+        setWorks(prev => prev.map(w => w.id === work.id ? work : w)); // optimistic
+        const statusMap: Record<string, string> = {
+            Planned: 'PROPOSED', Ongoing: 'ONGOING', Completed: 'COMPLETED', 'On Hold': 'ON_HOLD',
+        };
+        const { error } = await (supabase as any).from('development_works').update({
+            work_title: work.name,
+            sector: work.category,
+            status: statusMap[work.status] ?? 'PLANNED',
+            budget: work.budget ?? 0,
+        }).eq('work_id', work.id);
+        if (error) console.error('[DB] updateWork:', error.message, error);
+    };
+
+    // â”€â”€ Contacts actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const addContact = async (contact: Contact) => {
+        setContacts(prev => [contact, ...prev]); // optimistic
+        const { data, error } = await (supabase as any).from('contacts').insert({
+            full_name: contact.name,
+            designation: contact.designation,
+            organization: contact.organization,
+            mobile: contact.mobile,
+            email: contact.email ?? null,
+            state: contact.state,
+            zilla: contact.zilla,
+            taluk: contact.taluk,
+            gram_panchayat: contact.gp,
+            village: contact.village,
+            is_vip: contact.isVip ?? false,
+        }).select().single();
+        if (error) { console.error('[DB] addContact:', error.message, error); return; }
+        if (data?.contact_id) setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, id: data.contact_id } : c));
+    };
+
+    const updateContact = async (contact: Contact) => {
+        setContacts(prev => prev.map(c => c.id === contact.id ? contact : c)); // optimistic
+        const { error } = await (supabase as any).from('contacts').update({
+            full_name: contact.name,
+            designation: contact.designation,
+            organization: contact.organization,
+            mobile: contact.mobile,
+            email: contact.email ?? null,
+            is_vip: contact.isVip ?? false,
+        }).eq('contact_id', contact.id);
+        if (error) console.error('[DB] updateContact:', error.message, error);
     };
 
     return (
@@ -195,3 +404,4 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         </MockDataContext.Provider>
     );
 };
+

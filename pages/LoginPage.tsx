@@ -17,7 +17,6 @@ import {
   Smartphone, 
   Fingerprint,
   ChevronLeft,
-  Key,
   CheckCircle2,
   ShieldAlert
 } from 'lucide-react';
@@ -27,7 +26,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
-  const { login } = useAuth();
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
   
   // States
@@ -35,6 +34,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [step, setStep] = useState(1); 
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [error, setError] = useState('');
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   // Filter roles based on portal type
   const roleConfigs = [
@@ -60,20 +64,53 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
     setStep(2);
   };
 
-  const handleAction = () => {
+  const handleAction = async () => {
+    if (!selectedRole) return;
+    setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      if (selectedRole) {
-        login(selectedRole);
-        const redirectPath = 
-          selectedRole === UserRole.MP ? '/mp' : 
-          selectedRole === UserRole.PA ? '/pa' : 
-          selectedRole === UserRole.STAFF ? '/staff' : 
+
+    if (isLogin) {
+      const result = await login(email, password);
+      if (result.error) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+      // Use the actual DB role for redirect — fall back to selected role if not returned
+      const role = result.role ?? selectedRole;
+      const redirectPath =
+        role === UserRole.MP ? '/mp' :
+        role === UserRole.PA ? '/pa' :
+        role === UserRole.STAFF ? '/staff' :
+        '/citizen';
+      navigate(redirectPath);
+      setIsLoading(false);
+    } else {
+      const result = await signup(email, password, fullName, selectedRole);
+      if (result.error) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
+      if (result.needsEmailConfirmation) {
+        // Email confirmation still enabled in Supabase — show tick, switch to sign in
+        setSignupSuccess(true);
+        setTimeout(() => {
+          setSignupSuccess(false);
+          setIsLogin(true);
+          setPassword('');
+        }, 2500);
+      } else {
+        // Auto-logged in after signup — navigate directly to dashboard
+        const redirectPath =
+          selectedRole === UserRole.MP ? '/mp' :
+          selectedRole === UserRole.PA ? '/pa' :
+          selectedRole === UserRole.STAFF ? '/staff' :
           '/citizen';
         navigate(redirectPath);
       }
-      setIsLoading(false);
-    }, 1200);
+    }
   };
 
   const containerVariants = {
@@ -155,13 +192,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
           <div className="flex justify-between items-center mb-12">
             <div className="bg-slate-100 p-1 rounded-2xl flex">
               <button 
-                onClick={() => { setIsLogin(true); setStep(portalType === 'citizen' ? 2 : 1); }}
+                onClick={() => { setIsLogin(true); setStep(portalType === 'citizen' ? 2 : 1); setError(''); setSignupSuccess(false); }}
                 className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Sign In
               </button>
               <button 
-                onClick={() => { setIsLogin(false); setStep(portalType === 'citizen' ? 2 : 1); }}
+                onClick={() => { setIsLogin(false); setStep(portalType === 'citizen' ? 2 : 1); setError(''); setSignupSuccess(false); }}
                 className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${!isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Sign Up
@@ -244,6 +281,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                   </h2>
                 </div>
 
+                {signupSuccess ? (
+                  <motion.div
+                    key="signup-success"
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center py-16 space-y-5"
+                  >
+                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle2 className="w-12 h-12 text-green-500" />
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Account Created!</h3>
+                    <p className="text-sm font-medium text-slate-500 text-center">Taking you to sign in...</p>
+                  </motion.div>
+                ) : (
                 <div className="space-y-5">
                   {!isLogin && (
                     <div className="space-y-1.5">
@@ -255,6 +306,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                         <input 
                           type="text" 
                           placeholder={portalType === 'citizen' ? "e.g. Rahul Sharma" : "Hon. Officer Name"}
+                          value={fullName}
+                          onChange={e => setFullName(e.target.value)}
                           className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
                         />
                       </div>
@@ -268,6 +321,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                       <input 
                         type="email" 
                         placeholder={portalType === 'official' ? "office@gov.in" : "citizen@email.com"}
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                         className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
                       />
                     </div>
@@ -280,24 +335,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                       <input 
                         type="password" 
                         placeholder="••••••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
                         className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
                       />
                     </div>
                   </div>
-
-                  {!isLogin && portalType === 'official' && (
-                    <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
-                      <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">Department Invitation Code</label>
-                      <div className="relative">
-                        <Key className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" />
-                        <input 
-                          type="text" 
-                          placeholder="DEPT-XXXX-XXXX"
-                          className="w-full pl-11 pr-4 py-4 bg-indigo-50/30 border border-indigo-100 rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {!isLogin && portalType === 'citizen' && (
                     <div className="space-y-1.5">
@@ -313,6 +356,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                     </div>
                   )}
 
+                  {error && (
+                    <p className="text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                      {error}
+                    </p>
+                  )}
+
                   <Button 
                     fullWidth 
                     size="lg" 
@@ -323,7 +372,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Validating Identity...
+                        {isLogin ? 'Validating Identity...' : 'Creating Account...'}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
@@ -333,6 +382,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
                     )}
                   </Button>
                 </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

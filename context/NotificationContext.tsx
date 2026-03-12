@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Notification, PlanEvent } from '../types';
+import { Notification } from '../types';
 
 interface NotificationContextType {
   notifications: Notification[];

@@ -13,42 +13,34 @@ import {
 import { Contact, ContactCategory } from '../../types';
 import ContactCard from '../../components/ContactCard';
 import { useNavigate } from 'react-router-dom';
-
-// Dummy Data
-const DUMMY_CONTACTS: Contact[] = [
-    {
-        id: '1',
-        name: 'Rajesh Kumar',
-        designation: 'Collector',
-        organization: 'District Administration',
-        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Mysuru', gp: 'City', village: 'Nazarbad' },
-        mobile: '+91 98765 43210',
-        email: 'rajesh.kumar@example.com',
-        category: 'Officer',
-        isVip: true,
-        addedAt: '2025-10-01T10:00:00Z',
-        birthday: '05-15'
-    },
-    {
-        id: '2',
-        name: 'Priya Sharma',
-        designation: 'Tehsildar',
-        organization: 'Revenue Department',
-        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Hunsur', gp: 'Hunsur Town', village: 'Main' },
-        mobile: '+91 98765 43211',
-        category: 'Officer',
-        isVip: false,
-        addedAt: '2025-11-20T14:30:00Z',
-        anniversary: '12-10'
-    }
-];
+import { contactsApi } from '../../hooks/useContacts';
 
 export const ContactBookPage: React.FC = () => {
     const navigate = useNavigate();
+    const [allContacts, setAllContacts] = useState<Contact[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchDropdown, setShowSearchDropdown] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    useEffect(() => {
+        contactsApi.list().then(({ data }) => {
+            if (data) setAllContacts(data.map((r: any) => ({
+                id: r.contact_id,
+                name: r.full_name,
+                designation: r.designation ?? '',
+                organization: r.organization ?? '',
+                location: { state: r.state ?? '', zilla: r.zilla ?? '', taluk: r.taluk ?? '', gp: r.gram_panchayat ?? '', village: r.village ?? '' },
+                mobile: r.mobile ?? '',
+                email: r.email ?? undefined,
+                category: r.category ?? 'OTHER',
+                isVip: r.is_vip ?? false,
+                addedAt: r.created_at ?? '',
+                birthday: r.birthday ?? undefined,
+                anniversary: r.anniversary ?? undefined,
+            })));
+        });
+    }, []);
 
     // Filters State
     const [filters, setFilters] = useState({
@@ -66,13 +58,13 @@ export const ContactBookPage: React.FC = () => {
     });
 
     const filteredContacts = useMemo(() => {
-        return DUMMY_CONTACTS.filter(contact => {
-            if (filters.state && contact.location.state !== filters.state) return false;
-            if (filters.zilla && contact.location.zilla !== filters.zilla) return false;
-            if (filters.taluk && contact.location.taluk !== filters.taluk) return false;
-            if (filters.gp && contact.location.gp !== filters.gp) return false;
-            if (filters.village && contact.location.village !== filters.village) return false;
-            if (filters.categories.length > 0 && !filters.categories.includes(contact.category)) return false;
+        return allContacts.filter(contact => {
+            if (filters.state && contact.state !== filters.state) return false;
+            if (filters.zilla && contact.zilla !== filters.zilla) return false;
+            if (filters.taluk && contact.taluk !== filters.taluk) return false;
+            if (filters.gp && contact.gp !== filters.gp) return false;
+            if (filters.village && contact.village !== filters.village) return false;
+            if (filters.categories.length > 0 && !filters.categories.includes(contact.category as any)) return false;
             if (filters.vipOnly && !contact.isVip) return false;
 
             const searchMatch = !searchQuery ||
@@ -82,16 +74,16 @@ export const ContactBookPage: React.FC = () => {
 
             return searchMatch;
         });
-    }, [filters, searchQuery]);
+    }, [filters, searchQuery, allContacts]);
 
     const searchResults = useMemo(() => {
         if (searchQuery.length < 2) return [];
-        return DUMMY_CONTACTS.filter(c =>
+        return allContacts.filter(c =>
             c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.mobile.includes(searchQuery)
         ).slice(0, 10);
-    }, [searchQuery]);
+    }, [searchQuery, allContacts]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (searchResults.length === 0) return;
@@ -353,7 +345,7 @@ export const ContactBookPage: React.FC = () => {
                 {/* Results Info */}
                 <div className="px-6 py-4 flex items-center justify-between">
                     <p className="text-sm text-gray-500 font-medium">
-                        Showing <span className="text-gray-900">{filteredContacts.length}</span> of <span className="text-gray-900">{DUMMY_CONTACTS.length}</span> contacts
+                    <span>Showing <span className="text-gray-900">{filteredContacts.length}</span> of <span className="text-gray-900">{allContacts.length}</span> contacts</span>
                     </p>
                     <div className="flex gap-2">
                         {/* Active filter badges could go here */}

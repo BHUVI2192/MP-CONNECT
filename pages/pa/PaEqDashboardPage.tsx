@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useRef } from 'react';
+﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -24,10 +24,29 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
-import { mockEqRequests } from '../../mockEqData';
+import { railwayEQApi } from '../../hooks/useRailwayEQ';
 import { EqRequest, EqStatus } from '../../types';
 
 export const PaEqDashboardPage: React.FC = () => {
+  const [eqRequests, setEqRequests] = useState<EqRequest[]>([]);
+  useEffect(() => {
+    railwayEQApi.getRequests().then(({ data }: any) => {
+      if (data) setEqRequests(data.map((r: any) => ({
+        id: r.id, applicantName: r.applicant_name, mobile: r.mobile ?? '',
+        email: r.email ?? '', emergencyReason: r.emergency_reason,
+        trainNumber: r.train_number ?? '', trainName: r.train_name ?? '',
+        originStation: r.origin_station ?? '', destinationStation: r.destination_station ?? '',
+        fromStation: r.from_station, toStation: r.to_station,
+        journeyDate: r.journey_date, travelClass: r.travel_class ?? '',
+        division: r.division ?? '', pnrNumber: r.pnr_number ?? '',
+        status: r.status === 'PENDING_PA_APPROVAL' ? 'PENDING' : r.status,
+        letterNumber: r.letter_number ?? undefined,
+        letterPath: r.letter_path ?? undefined,
+        rejectionReason: r.rejection_reason ?? undefined,
+        submittedAt: r.created_at ?? '',
+      })));
+    });
+  }, []);
   const [selectedRequest, setSelectedRequest] = useState<EqRequest | null>(null);
   const [activeTab, setActiveTab] = useState<EqStatus | 'ALL'>('PENDING');
   const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -36,13 +55,13 @@ export const PaEqDashboardPage: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState('');
 
   const filteredRequests = useMemo(() => {
-    if (activeTab === 'ALL') return mockEqRequests;
-    return mockEqRequests.filter(r => r.status === activeTab);
-  }, [activeTab]);
+    if (activeTab === 'ALL') return eqRequests;
+    return eqRequests.filter(r => r.status === activeTab);
+  }, [eqRequests, activeTab]);
 
   const stats = [
-    { label: 'Pending Approval', value: mockEqRequests.filter(r => r.status === 'PENDING').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Approved This Month', value: mockEqRequests.filter(r => r.status === 'APPROVED' || r.status === 'SENT').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Pending Approval', value: eqRequests.filter(r => r.status === 'PENDING').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Approved This Month', value: eqRequests.filter(r => r.status === 'APPROVED' || r.status === 'SENT').length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Monthly Quota', value: '45/100', icon: ShieldCheck, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
 

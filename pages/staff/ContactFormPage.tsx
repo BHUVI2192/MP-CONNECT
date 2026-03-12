@@ -29,7 +29,7 @@ export const ContactFormPage: React.FC = () => {
     const isEdit = !!id;
 
     const [currentStep, setCurrentStep] = useState(1);
-    const [formData, setFormData] = useState<Partial<Contact> & { photoFile?: File }>({
+    const [formData, setFormData] = useState<any>({
         name: '',
         designation: '',
         organization: '',

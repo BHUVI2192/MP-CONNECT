@@ -8,15 +8,17 @@ interface CardProps {
   subtitle?: string;
   className?: string;
   delay?: number;
+  onClick?: () => void;
 }
 
-export const Card: React.FC<CardProps> = ({ children, title, subtitle, className = '', delay = 0 }) => {
+export const Card: React.FC<CardProps> = ({ children, title, subtitle, className = '', delay = 0, onClick }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${className}`}
+      onClick={onClick}
+      className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${className}${onClick ? ' cursor-pointer' : ''}`}
     >
       {(title || subtitle) && (
         <div className="px-6 py-4 border-b border-slate-100">

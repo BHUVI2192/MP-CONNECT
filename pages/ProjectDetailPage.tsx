@@ -21,11 +21,12 @@ import {
   ZoomOut,
   Play,
   Layers,
-  Globe
+  Globe,
+  CheckCircle2
 } from 'lucide-react';
 import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
-import { MOCK_PROJECTS } from '../mockProjects';
+import { devWorksApi } from '../hooks/useDevelopmentWorks';
 import { Project } from '../types';
 
 const Accordion: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
@@ -64,7 +65,30 @@ export const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isPa = location.pathname.includes('/pa/');
-  const project = MOCK_PROJECTS.find(p => p.id === id);
+  const [project, setProject] = useState<Project | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    devWorksApi.getById(id).then(({ data }: any) => {
+      if (data) {
+        const statusMap: Record<string, Project['status']> = {
+          PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
+          COMPLETED: 'Completed', ON_HOLD: 'On Hold',
+        };
+        setProject({
+          id: data.work_id, name: data.work_title, category: data.sector ?? 'Other',
+          status: statusMap[data.status] ?? 'Planned', progress: data.progress_pct ?? 0,
+          budget: data.sanctioned_amount ?? data.estimated_cost ?? 0,
+          zilla: data.zilla ?? '', taluk: data.taluk ?? '', gp: data.gram_panchayat ?? '',
+          village: data.village ?? '', sanctionOrderNo: data.scheme_name ?? '',
+          startDate: data.start_date ?? '', completionDate: data.target_date ?? undefined,
+          description: '', beneficiaries: 0, fundingSource: 'MPLADS',
+          photos: (data.development_work_media ?? []).filter((m: any) => m.media_type === 'PHOTO').map((m: any) => ({
+            url: m.storage_path, caption: m.file_name ?? '',
+          })),
+        });
+      }
+    });
+  }, [id]);
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);

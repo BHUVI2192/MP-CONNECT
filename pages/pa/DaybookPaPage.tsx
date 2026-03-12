@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
@@ -27,6 +27,8 @@ export const DaybookPaPage: React.FC = () => {
     const { events, updateEvent } = useMockData();
     const [activeTab, setActiveTab] = useState<'today' | 'past'>('today');
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
 
     // Modals state
     const [activeUpdateEvent, setActiveUpdateEvent] = useState<PlanTodayEvent | null>(null);
@@ -43,6 +45,16 @@ export const DaybookPaPage: React.FC = () => {
     // Filter events for the selected date
     const dateStr = selectedDate.toISOString().split('T')[0];
     let displayEvents = events.filter(e => e.date === dateStr);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const eventDates = useMemo(() => new Set(events.map(e => e.date).filter(Boolean)), [events]);
+    const calYear = calendarMonth.getFullYear();
+    const calMonthIdx = calendarMonth.getMonth();
+    const calendarDays = useMemo((): (number | null)[] => {
+        const dim = new Date(calYear, calMonthIdx + 1, 0).getDate();
+        const fdow = new Date(calYear, calMonthIdx, 1).getDay();
+        return [...Array(fdow).fill(null), ...Array.from({ length: dim }, (_, i) => i + 1)];
+    }, [calYear, calMonthIdx]);
 
     // Sort chronologically
     displayEvents.sort((a, b) => {
@@ -137,20 +149,85 @@ export const DaybookPaPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Date Navigation for Past Days */}
+            {/* Date Navigation */}
             {activeTab === 'past' && (
-                <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
-                    <Button variant="ghost" size="sm" onClick={() => navigateDate(-1)}>
-                        <ChevronLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="text-center">
-                        <h3 className="text-lg font-black text-slate-900">
-                            {selectedDate.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                        </h3>
+                <div className="relative">
+                    <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+                        <Button variant="ghost" size="sm" onClick={() => navigateDate(-1)}>
+                            <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                        <div className="flex flex-col items-center gap-1">
+                            <button
+                                onClick={() => { setCalendarMonth(new Date(selectedDate)); setShowCalendar(v => !v); }}
+                                className="text-center hover:opacity-75 transition-opacity"
+                            >
+                                <h3 className="text-lg font-black text-slate-900">
+                                    {selectedDate.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                </h3>
+                                <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">Tap to pick date</p>
+                            </button>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => navigateDate(1)}>
+                            <ChevronRight className="w-5 h-5" />
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigateDate(1)}>
-                        <ChevronRight className="w-5 h-5" />
-                    </Button>
+
+                    {showCalendar && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl z-20 p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <button
+                                    onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() - 1); setCalendarMonth(d); }}
+                                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                                </button>
+                                <span className="text-sm font-black text-slate-900">
+                                    {calendarMonth.toLocaleDateString('default', { month: 'long', year: 'numeric' })}
+                                </span>
+                                <button
+                                    onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() + 1); setCalendarMonth(d); }}
+                                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                                {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                                    <div key={d} className="text-center text-[10px] font-black text-slate-400 py-1">{d}</div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                                {calendarDays.map((day, i) => {
+                                    if (!day) return <div key={`blank-${i}`} />;
+                                    const dStr = `${calYear}-${String(calMonthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                    const isSel = dStr === dateStr;
+                                    const isToday = dStr === todayStr;
+                                    const hasDot = eventDates.has(dStr);
+                                    return (
+                                        <button
+                                            key={dStr}
+                                            onClick={() => {
+                                                const d = new Date(calYear, calMonthIdx, day);
+                                                setSelectedDate(d);
+                                                setActiveTab(d.toDateString() === new Date().toDateString() ? 'today' : 'past');
+                                                setShowCalendar(false);
+                                            }}
+                                            className={`relative aspect-square flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
+                                                isSel ? 'bg-indigo-600 text-white shadow-md' :
+                                                isToday ? 'ring-2 ring-indigo-400 text-indigo-700 bg-indigo-50' :
+                                                'hover:bg-slate-100 text-slate-700'
+                                            }`}
+                                        >
+                                            {day}
+                                            {hasDot && !isSel && (
+                                                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -19,31 +19,44 @@ import {
   Printer,
   FileText
 } from 'lucide-react';
-import { mockParliamentLetters } from '../../mockParliament';
+import { parliamentApi } from '../../hooks/useParliament';
 import { ParliamentLetter, LetterStatus } from '../../types';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 
 export const ParliamentLettersPage: React.FC = () => {
+  const [letters, setLetters] = useState<ParliamentLetter[]>([]);
+  useEffect(() => {
+    parliamentApi.getLetters().then(({ data }: any) => {
+      if (data) setLetters(data.map((r: any) => ({
+        id: r.letter_id, refNumber: r.ref_number ?? '', subject: r.subject,
+        ministry: r.ministry, department: r.department ?? '', addressedTo: r.addressed_to ?? '',
+        type: r.type ?? 'Request', priority: r.priority ?? 'Medium',
+        sentDate: r.sent_date ?? '', expectedResponseDate: r.expected_response_date ?? '',
+        summary: r.summary ?? '', constituencyIssue: r.constituency_issue ?? '',
+        status: r.status, timeline: r.timeline ?? [],
+      })));
+    });
+  }, []);
   const [selectedLetter, setSelectedLetter] = useState<ParliamentLetter | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<LetterStatus | 'ALL'>('ALL');
 
   const filteredLetters = useMemo(() => {
-    return mockParliamentLetters.filter(letter => {
+    return letters.filter(letter => {
       const matchesSearch = letter.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           letter.refNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           letter.ministry.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'ALL' || letter.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [letters, searchQuery, statusFilter]);
 
   const stats = [
-    { label: 'Total', value: mockParliamentLetters.length, color: 'text-slate-600', bg: 'bg-slate-50' },
-    { label: 'Pending', value: mockParliamentLetters.filter(l => l.status === 'SENT' || l.status === 'ACKNOWLEDGED').length, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Overdue', value: 2, color: 'text-red-600', bg: 'bg-red-50', isCritical: true },
-    { label: 'Closed', value: mockParliamentLetters.filter(l => l.status === 'CLOSED').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total', value: letters.length, color: 'text-slate-600', bg: 'bg-slate-50' },
+    { label: 'Pending', value: letters.filter(l => l.status === 'SENT' || l.status === 'ACKNOWLEDGED').length, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Overdue', value: letters.filter(l => l.expectedResponseDate && new Date(l.expectedResponseDate) < new Date() && l.status !== 'REPLIED' && l.status !== 'CLOSED').length, color: 'text-red-600', bg: 'bg-red-50', isCritical: true },
+    { label: 'Closed', value: letters.filter(l => l.status === 'CLOSED').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
 
   if (selectedLetter) {

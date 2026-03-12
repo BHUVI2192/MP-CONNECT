@@ -48,7 +48,7 @@ const ContactCard: React.FC<ContactCardProps> = ({ contact, onEdit, onDelete }) 
                 <p className="text-xs text-gray-400 mb-2">{contact.organization}</p>
 
                 <div className="text-[11px] text-gray-500 mb-4 bg-gray-50 px-2 py-1 rounded-full uppercase tracking-wider">
-                    {contact.location.taluk}, {contact.location.zilla}
+                    {contact.taluk}, {contact.zilla}
                 </div>
 
                 <a

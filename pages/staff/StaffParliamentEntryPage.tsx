@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mail, 
@@ -15,7 +16,8 @@ import {
   Eye,
   Plus,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
@@ -64,6 +66,46 @@ export const StaffParliamentEntryPage: React.FC = () => {
 
   const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const handleSubmitToTracker = async () => {
+    if (entryType === 'letter') {
+      const { error } = await (supabase as any).from('parliament_letters').insert({
+        subject: formData.subject,
+        recipient: formData.addressedTo || formData.ministry,
+        ref_number: formData.refNumber || null,
+        ministry: formData.ministry,
+        department: formData.department || null,
+        addressed_to: formData.addressedTo || null,
+        type: formData.letterType,
+        priority: formData.priority,
+        sent_date: formData.sentDate || null,
+        expected_response_date: formData.expectedResponseDate || null,
+        summary: formData.summary || null,
+        constituency_issue: formData.constituencyIssue || null,
+        follow_up_date: formData.followUpDate || null,
+        status: 'Draft',
+      });
+      if (error) { console.error('[DB] addLetter:', error.message, error); alert('Save failed: ' + error.message); return; }
+    } else {
+      const { error } = await (supabase as any).from('parliament_questions').insert({
+        question_number: formData.questionNumber || 'TBD',
+        session_name: formData.sessionName,
+        session_date: formData.sessionDate || null,
+        subject: formData.subject,
+        type: formData.questionType,
+        ministry: formData.ministry || null,
+        department: formData.department || null,
+        constituency_relevance: formData.constituencyRelevance || null,
+        full_text: formData.fullQuestionText || null,
+        tags: formData.tags,
+        priority: formData.priority,
+        expected_answer_date: formData.expectedAnswerDate || null,
+        status: 'SUBMITTED',
+      });
+      if (error) { console.error('[DB] addQuestion:', error.message, error); alert('Save failed: ' + error.message); return; }
+    }
+    alert(entryType === 'letter' ? 'Letter saved to Parliament Tracker!' : 'Question saved to Parliament Tracker!');
+  };
 
   const addTag = () => {
     if (newTag && !formData.tags.includes(newTag)) {
@@ -442,7 +484,7 @@ export const StaffParliamentEntryPage: React.FC = () => {
                       <p className="text-[10px] text-slate-500 font-medium">All required information has been provided.</p>
                     </div>
                   </div>
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12">
+                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-12" onClick={handleSubmitToTracker}>
                     Submit to Tracker
                   </Button>
                 </div>
@@ -473,3 +515,4 @@ export const StaffParliamentEntryPage: React.FC = () => {
     </div>
   );
 };
+

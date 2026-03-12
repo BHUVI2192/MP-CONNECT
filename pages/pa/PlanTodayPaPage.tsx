@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
@@ -53,6 +53,8 @@ export const PlanTodayPaPage: React.FC = () => {
 
     const [isDayFinalized, setIsDayFinalized] = useState(false);
     const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
 
     const [newEvent, setNewEvent] = useState<Partial<PlanTodayEvent>>({
         type: 'Visit',
@@ -63,6 +65,16 @@ export const PlanTodayPaPage: React.FC = () => {
 
     const selectedDateStr = selectedDate.toISOString().split('T')[0];
     const dayEvents = events.filter(e => e.date === selectedDateStr);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const eventDates = useMemo(() => new Set(events.map(e => e.date).filter(Boolean)), [events]);
+    const calYear = calendarMonth.getFullYear();
+    const calMonthIdx = calendarMonth.getMonth();
+    const calendarDays = useMemo((): (number | null)[] => {
+        const dim = new Date(calYear, calMonthIdx + 1, 0).getDate();
+        const fdow = new Date(calYear, calMonthIdx, 1).getDay();
+        return [...Array(fdow).fill(null), ...Array.from({ length: dim }, (_, i) => i + 1)];
+    }, [calYear, calMonthIdx]);
 
     const handleFinalizeDay = () => {
         dayEvents.forEach(e => {
@@ -165,9 +177,28 @@ export const PlanTodayPaPage: React.FC = () => {
                         >
                             {isDayFinalized ? 'Day Finalized ✓' : 'Finalize Day Plan'}
                         </Button>
-                        <Button onClick={() => setView('create')} className="shadow-lg shadow-indigo-200">
+                        <Button onClick={() => {
+                                    setNewEvent({ type: 'Visit', attendees: [], date: selectedDateStr });
+                                    setView('create');
+                                }} className="shadow-lg shadow-indigo-200">
                             <Plus className="w-5 h-5 mr-2" />
                             Plan New Event
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const tomorrow = new Date(selectedDate);
+                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                const tStr = tomorrow.toISOString().split('T')[0];
+                                setSelectedDate(tomorrow);
+                                setIsDayFinalized(false);
+                                setNewEvent({ type: 'Visit', attendees: [], date: tStr });
+                                setView('create');
+                            }}
+                            className="shadow-sm"
+                        >
+                            <Plus className="w-5 h-5 mr-2" />
+                            Plan Tomorrow
                         </Button>
                     </div>
                 )}
@@ -182,22 +213,96 @@ export const PlanTodayPaPage: React.FC = () => {
                         exit={{ opacity: 0, y: -10 }}
                         className="space-y-6"
                     >
-                        {/* Date Navigation */}
-                        <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))}>
-                                <ChevronLeft className="w-5 h-5" />
-                            </Button>
-                            <div className="text-center">
-                                <h3 className="text-lg font-black text-slate-900">
-                                    {selectedDate.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                </h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                                    {selectedDate.toDateString() === new Date().toDateString() ? "Today's Schedule" : "Selected Date"}
-                                </p>
+                        {/* Date Navigation with Mini Calendar */}
+                        <div className="relative">
+                            <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                    const d = new Date(selectedDate); d.setDate(d.getDate() - 1);
+                                    setSelectedDate(d); setIsDayFinalized(false);
+                                }}>
+                                    <ChevronLeft className="w-5 h-5" />
+                                </Button>
+                                <div className="flex flex-col items-center gap-1">
+                                    <button
+                                        onClick={() => { setCalendarMonth(new Date(selectedDate)); setShowCalendar(v => !v); }}
+                                        className="text-center hover:opacity-75 transition-opacity"
+                                    >
+                                        <h3 className="text-lg font-black text-slate-900">
+                                            {selectedDate.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </h3>
+                                        <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">
+                                            {selectedDateStr === todayStr ? "Today's Schedule" : 'Tap date to open calendar'}
+                                        </p>
+                                    </button>
+                                    {selectedDateStr !== todayStr && (
+                                        <button
+                                            onClick={() => { setSelectedDate(new Date()); setIsDayFinalized(false); setShowCalendar(false); }}
+                                            className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
+                                        >
+                                            ← Back to Today
+                                        </button>
+                                    )}
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                    const d = new Date(selectedDate); d.setDate(d.getDate() + 1);
+                                    setSelectedDate(d); setIsDayFinalized(false);
+                                }}>
+                                    <ChevronRight className="w-5 h-5" />
+                                </Button>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)))}>
-                                <ChevronRight className="w-5 h-5" />
-                            </Button>
+
+                            {/* Mini Calendar Dropdown */}
+                            {showCalendar && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl z-20 p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <button
+                                            onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() - 1); setCalendarMonth(d); }}
+                                            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <ChevronLeft className="w-4 h-4 text-slate-600" />
+                                        </button>
+                                        <span className="text-sm font-black text-slate-900">
+                                            {calendarMonth.toLocaleDateString('default', { month: 'long', year: 'numeric' })}
+                                        </span>
+                                        <button
+                                            onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() + 1); setCalendarMonth(d); }}
+                                            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <ChevronRight className="w-4 h-4 text-slate-600" />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1 mb-2">
+                                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                                            <div key={d} className="text-center text-[10px] font-black text-slate-400 py-1">{d}</div>
+                                        ))}
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {calendarDays.map((day, i) => {
+                                            if (!day) return <div key={`blank-${i}`} />;
+                                            const dStr = `${calYear}-${String(calMonthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                            const isSel = dStr === selectedDateStr;
+                                            const isToday = dStr === todayStr;
+                                            const hasDot = eventDates.has(dStr);
+                                            return (
+                                                <button
+                                                    key={dStr}
+                                                    onClick={() => { setSelectedDate(new Date(calYear, calMonthIdx, day)); setShowCalendar(false); setIsDayFinalized(false); }}
+                                                    className={`relative aspect-square flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
+                                                        isSel ? 'bg-indigo-600 text-white shadow-md' :
+                                                        isToday ? 'ring-2 ring-indigo-400 text-indigo-700 bg-indigo-50' :
+                                                        'hover:bg-slate-100 text-slate-700'
+                                                    }`}
+                                                >
+                                                    {day}
+                                                    {hasDot && !isSel && (
+                                                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Timeline / Events List */}
@@ -209,7 +314,10 @@ export const PlanTodayPaPage: React.FC = () => {
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-900">No events planned yet.</h3>
                                     <p className="text-slate-500 text-lg mt-2">Start building your day by adding events.</p>
-                                    <Button onClick={() => setView('create')} className="mt-8 shadow-lg shadow-indigo-200">
+                                    <Button onClick={() => {
+                                        setNewEvent({ type: 'Visit', attendees: [], date: selectedDateStr });
+                                        setView('create');
+                                    }} className="mt-8 shadow-lg shadow-indigo-200">
                                         <Plus className="w-5 h-5 mr-2" />
                                         Add Event
                                     </Button>
@@ -350,6 +458,36 @@ export const PlanTodayPaPage: React.FC = () => {
                             </div>
 
                             <div className="p-6 space-y-8 flex-1 overflow-y-auto">
+                                {/* Date */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Event Date <span className="text-red-500">*</span></label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 font-bold text-slate-900 outline-none transition-all"
+                                            value={newEvent.date || selectedDateStr}
+                                            onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewEvent({ ...newEvent, date: new Date().toISOString().split('T')[0] })}
+                                            className="px-3 py-3 text-[10px] font-black uppercase tracking-widest bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-500 rounded-xl transition-colors whitespace-nowrap"
+                                        >
+                                            Today
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const t = new Date(); t.setDate(t.getDate() + 1);
+                                                setNewEvent({ ...newEvent, date: t.toISOString().split('T')[0] });
+                                            }}
+                                            className="px-3 py-3 text-[10px] font-black uppercase tracking-widest bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-500 rounded-xl transition-colors whitespace-nowrap"
+                                        >
+                                            Tomorrow
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {/* Title */}
                                 <div className="space-y-1">
                                     <div className="flex justify-between items-end mb-2">

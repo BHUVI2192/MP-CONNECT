@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
-import { mockTrains } from '../../mockEqData';
+import { railwayEQApi } from '../../hooks/useRailwayEQ';
 import { Train } from '../../types';
 
 const STEPS = [
@@ -61,11 +61,19 @@ export const StaffEqRequestPage: React.FC = () => {
   const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
-  const handleTrainNumberChange = (val: string) => {
+  const handleTrainNumberChange = async (val: string) => {
     setFormData(prev => ({ ...prev, trainNumber: val }));
     if (val.length === 5) {
-      const train = mockTrains.find(t => t.number === val);
-      if (train) {
+      const { data, error } = await railwayEQApi.lookupTrain(val);
+      if (data && !error) {
+        const train: Train = {
+          number: data.train_number,
+          name: data.train_name,
+          origin: data.origin ?? '',
+          destination: data.destination ?? '',
+          division: data.division ?? '',
+          stops: (data.stops as any[]) ?? [],
+        };
         setSelectedTrain(train);
         setTrainError('');
       } else {
@@ -78,7 +86,27 @@ export const StaffEqRequestPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    try {
+      await railwayEQApi.submitRequest({
+        applicant_name: formData.applicantName,
+        mobile: formData.mobile,
+        email: formData.email || null,
+        emergency_reason: formData.emergencyReason,
+        train_number: selectedTrain?.number ?? formData.trainNumber,
+        train_name: selectedTrain?.name ?? null,
+        origin_station: selectedTrain?.origin ?? null,
+        destination_station: selectedTrain?.destination ?? null,
+        from_station: formData.fromStation,
+        to_station: formData.toStation,
+        journey_date: formData.journeyDate,
+        travel_class: formData.travelClass,
+        pnr_number: formData.pnrNumber || null,
+        division: selectedTrain?.division ?? null,
+      });
+    } catch (err) {
+      console.error('[EQ] submitRequest failed:', err);
+    }
     setIsSubmitted(true);
   };
 

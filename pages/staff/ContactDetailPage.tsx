@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Phone,
     MessageCircle,
@@ -22,26 +22,9 @@ import {
     Clock
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Contact, ContactCategory } from '../../types';
+import { Contact } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Reusing dummy data for demonstration
-const DUMMY_CONTACTS: Contact[] = [
-    {
-        id: '1',
-        name: 'Rajesh Kumar',
-        designation: 'Collector',
-        organization: 'District Administration',
-        location: { state: 'Karnataka', zilla: 'Mysuru', taluk: 'Mysuru', gp: 'City', village: 'Nazarbad' },
-        mobile: '+91 98765 43210',
-        email: 'rajesh.kumar@example.com',
-        category: 'Officer',
-        isVip: true,
-        addedAt: '2025-10-01T10:00:00Z',
-        birthday: '1980-05-15',
-        anniversary: '2005-12-10'
-    }
-];
+import { contactsApi } from '../../hooks/useContacts';
 
 export const ContactDetailPage: React.FC = () => {
     const navigate = useNavigate();
@@ -52,13 +35,38 @@ export const ContactDetailPage: React.FC = () => {
         notes: true,
         engagement: true
     });
+    const [contact, setContact] = useState<Contact | null>(null);
+
+    useEffect(() => {
+        if (!id) return;
+        contactsApi.getById(id).then(({ data }: { data: any }) => {
+            if (data) setContact({
+                id: data.contact_id,
+                name: data.full_name,
+                designation: data.designation ?? '',
+                organization: data.organization ?? '',
+                state: data.state ?? '',
+                zilla: data.zilla ?? '',
+                taluk: data.taluk ?? '',
+                gp: data.gram_panchayat ?? '',
+                village: data.village ?? '',
+                mobile: data.mobile ?? '',
+                email: data.email ?? undefined,
+                category: data.category ?? 'OTHER',
+                isVip: data.is_vip ?? false,
+                createdAt: data.created_at ?? '',
+                birthday: data.birthday ?? undefined,
+                anniversary: data.anniversary ?? undefined,
+                notes: data.notes ?? undefined,
+            });
+        });
+    }, [id]);
 
     const toggleSection = (section: keyof typeof openSections) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
-    // Find contact (mocking API call)
-    const contact = useMemo(() => DUMMY_CONTACTS.find(c => c.id === id) || DUMMY_CONTACTS[0], [id]);
+    if (!contact) return <div className="p-8 text-center text-slate-400">Loading contact...</div>;
 
     const getInitials = (name: string) => {
         return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -193,14 +201,14 @@ export const ContactDetailPage: React.FC = () => {
                                         <InfoItem icon={Phone} label="Alternate Mobile" value="" />
                                         <InfoItem icon={Mail} label="Email Address" value={contact.email} />
                                         <InfoItem icon={MessageCircle} label="WhatsApp" value={contact.mobile} />
-                                        <InfoItem icon={MapPin} label="Location" value={`${contact.location.village}, ${contact.location.taluk}, ${contact.location.zilla}`} fullWidth />
+                                        <InfoItem icon={MapPin} label="Location" value={`${contact.village}, ${contact.taluk}, ${contact.zilla}`} fullWidth />
                                         <InfoItem icon={FileText} label="Address" value="123 Revenue Colony, Main Road, Mysuru" fullWidth />
                                         <InfoItem icon={Calendar} label="Date of Birth" value={contact.birthday} />
                                         <InfoItem icon={Calendar} label="Anniversary" value={contact.anniversary} />
                                         <InfoItem icon={Tag} label="Category" value={contact.category} />
                                         <InfoItem icon={Star} label="VIP Status" value={contact.isVip ? "Active" : "Regular"} />
                                         <InfoItem icon={User} label="Created By" value="Admin Staff" />
-                                        <InfoItem icon={Clock} label="Created Date" value={new Date(contact.addedAt).toLocaleDateString()} />
+                                        <InfoItem icon={Clock} label="Created Date" value={contact.createdAt ? new Date(contact.createdAt).toLocaleDateString() : ''} />
                                     </div>
                                 </motion.div>
                             )}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -32,7 +32,7 @@ import {
   Tooltip as ReTooltip,
   Legend
 } from 'recharts';
-import { mockParliamentQuestions } from '../../mockParliament';
+import { parliamentApi } from '../../hooks/useParliament';
 import { ParliamentQuestion, QuestionStatus } from '../../types';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
@@ -40,19 +40,31 @@ import { Card } from '../../components/UI/Card';
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'];
 
 export const ParliamentQuestionsPage: React.FC = () => {
+  const [questions, setQuestions] = useState<ParliamentQuestion[]>([]);
+  useEffect(() => {
+    parliamentApi.getQuestions().then(({ data }: any) => {
+      if (data) setQuestions(data.map((r: any) => ({
+        id: r.id, questionNumber: r.question_number ?? '', type: r.type ?? 'Unstarred',
+        subject: r.subject, ministry: r.ministry ?? '', status: r.status,
+        priority: r.priority ?? 'Medium', tags: r.tags ?? [],
+        sessionName: r.session_name ?? '', sessionDate: r.session_date ?? '',
+        fullText: r.full_text ?? '',
+      })));
+    });
+  }, []);
   const [selectedQuestion, setSelectedQuestion] = useState<ParliamentQuestion | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<QuestionStatus | 'ALL'>('ALL');
 
   const filteredQuestions = useMemo(() => {
-    return mockParliamentQuestions.filter(q => {
+    return questions.filter(q => {
       const matchesSearch = q.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           q.questionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           q.ministry.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
-      return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [questions, searchQuery, statusFilter]);
 
   const analyticsData = {
     satisfaction: [
@@ -214,9 +226,9 @@ export const ParliamentQuestionsPage: React.FC = () => {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto">
           {[
-            { label: 'Raised', value: mockParliamentQuestions.length, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            { label: 'Awaiting', value: mockParliamentQuestions.filter(q => q.status !== 'ANSWERED').length, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Answered', value: mockParliamentQuestions.filter(q => q.status === 'ANSWERED').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Raised', value: questions.length, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+            { label: 'Awaiting', value: questions.filter(q => q.status !== 'ANSWERED').length, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Answered', value: questions.filter(q => q.status === 'ANSWERED').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Deferred', value: 0, color: 'text-slate-600', bg: 'bg-slate-50' },
           ].map((stat, i) => (
             <div key={i} className={`px-6 py-4 rounded-2xl ${stat.bg} ${stat.color} text-center min-w-[120px]`}>

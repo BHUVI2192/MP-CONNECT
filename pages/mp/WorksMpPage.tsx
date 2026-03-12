@@ -83,7 +83,7 @@ export const WorksMpPage: React.FC = () => {
                   <p className="text-sm text-slate-500 mt-1">{project.category} • Budget: {(project.budget / 10000000).toFixed(1)} Cr</p>
                 </div>
                 <div className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${project.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                    project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                    project.status === 'Ongoing' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
                   }`}>
                   {project.status}
                 </div>

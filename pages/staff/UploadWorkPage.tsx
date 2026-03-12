@@ -30,6 +30,7 @@ import {
     ChevronDown,
     Info
 } from 'lucide-react';
+import { devWorksApi } from '../../hooks/useDevelopmentWorks';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
@@ -91,20 +92,34 @@ export const UploadWorkPage: React.FC = () => {
         return false;
     };
 
-    const handleUpload = () => {
+    const handleUpload = async () => {
         setUploading(true);
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += 10;
-            setUploadProgress(progress);
-            if (progress >= 100) {
-                clearInterval(interval);
-                setTimeout(() => {
-                    setUploading(false);
-                    navigate('/staff/works'); // Redirect to works list
-                }, 500);
-            }
-        }, 300);
+        const statusMap: Record<string, string> = {
+            Ongoing: 'ONGOING', Completed: 'COMPLETED', Planned: 'PLANNED',
+        };
+        const { error } = await devWorksApi.create({
+            work_title: formData.title,
+            sector: formData.sector,
+            work_type: formData.type ?? null,
+            description: formData.description?.project ?? null,
+            history: formData.description?.history ?? null,
+            work_done: formData.description?.workDone ?? null,
+            status: (statusMap[formData.status] ?? 'ONGOING') as any,
+            zilla: formData.location?.zilla ?? null,
+            taluk: formData.location?.taluk ?? null,
+            gram_panchayat: formData.location?.gp ?? null,
+            village: formData.location?.village ?? null,
+            location_address: formData.location?.address ?? null,
+            beneficiaries: formData.metrics?.beneficiaries ?? null,
+            budget: formData.metrics?.budget ?? null,
+            funding_source: formData.metrics?.fundingSource ?? null,
+            start_date: formData.metrics?.startDate || null,
+            completion_date: formData.metrics?.completionDate || null,
+            is_public: formData.visibility?.publicPortal ?? true,
+        } as any);
+        setUploading(false);
+        if (error) { console.error('[DB] uploadWork:', error.message, error); alert('Upload failed: ' + error.message); return; }
+        navigate('/staff/works');
     };
 
     const renderTabContent = () => {

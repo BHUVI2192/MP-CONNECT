@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -12,18 +12,47 @@ import {
   Play,
   ArrowLeft
 } from 'lucide-react';
-import { mockAlbums } from '../mockGallery';
+import { photoGalleryApi } from '../hooks/usePhotoGallery';
 import { Album } from '../types';
 import { Lightbox } from '../components/Lightbox';
 
 export const PhotoGalleryPage: React.FC = () => {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  useEffect(() => {
+    photoGalleryApi.listAlbums(true).then(({ data }: any) => {
+      if (data) {
+        setAlbums(data.map((a: any) => ({
+          id: a.gallery_id,
+          name: a.title,
+          description: a.description ?? '',
+          eventDate: a.event_date ?? '',
+          eventType: 'Event',
+          location: a.location ?? '',
+          tags: [],
+          isPublic: a.is_public ?? false,
+          coverPhotoUrl: a.cover_photo_url ||
+            (a.photo_gallery_photos?.[0] ? photoGalleryApi.getPhotoUrl(a.photo_gallery_photos[0].storage_path) : ''),
+          photoCount: a.photo_gallery_photos?.length ?? 0,
+          viewCount: 0, downloadCount: 0,
+          createdAt: a.created_at?.split('T')[0] ?? '',
+          photos: (a.photo_gallery_photos ?? []).map((p: any) => ({
+            id: p.photo_id,
+            url: photoGalleryApi.getPhotoUrl(p.storage_path),
+            thumbnailUrl: photoGalleryApi.getPhotoUrl(p.storage_path),
+            caption: p.caption ?? '', photographer: '', dateTaken: '',
+            isCover: p.display_order === 0,
+          })),
+        })));
+      }
+    });
+  }, []);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState('All');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [initialPhotoIndex, setInitialPhotoIndex] = useState(0);
 
-  const publicAlbums = useMemo(() => mockAlbums.filter(a => a.isPublic), []);
+  const publicAlbums = useMemo(() => albums.filter(a => a.isPublic), [albums]);
 
   const filteredAlbums = useMemo(() => {
     return publicAlbums.filter(album => {
