@@ -80,6 +80,61 @@ export const GalleryPaPage: React.FC = () => {
     });
   }, [albums, searchQuery]);
 
+  // --- Download Album Logic ---
+  const [isDownloadingAlbum, setIsDownloadingAlbum] = useState(false);
+  const sanitizeFileName = (name) =>
+    name.replace(/[^a-z0-9-_]+/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'album';
+  const inferExtension = (url, contentType) => {
+    if (contentType?.includes('jpeg')) return 'jpg';
+    if (contentType?.includes('png')) return 'png';
+    if (contentType?.includes('webp')) return 'webp';
+    if (contentType?.includes('gif')) return 'gif';
+    try {
+      const pathname = new URL(url).pathname;
+      const name = pathname.split('/').pop() || '';
+      const ext = name.includes('.') ? name.split('.').pop() : '';
+      return ext && ext.length <= 5 ? ext : 'jpg';
+    } catch {
+      return 'jpg';
+    }
+  };
+  const downloadBlob = (blob, fileName) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(objectUrl);
+  };
+  const handleDownloadAlbum = async () => {
+    if (!selectedAlbum || selectedAlbum.photos.length === 0 || isDownloadingAlbum) return;
+    setIsDownloadingAlbum(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const albumFolder = zip.folder(sanitizeFileName(selectedAlbum.name)) ?? zip;
+      for (let i = 0; i < selectedAlbum.photos.length; i += 1) {
+        const photo = selectedAlbum.photos[i];
+        const res = await fetch(photo.url, { mode: 'cors' });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const ext = inferExtension(photo.url, res.headers.get('content-type'));
+        const index = String(i + 1).padStart(2, '0');
+        const captionPart = sanitizeFileName(photo.caption || `photo_${index}`);
+        albumFolder.file(`${index}_${captionPart}.${ext}`, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(zipBlob, `${sanitizeFileName(selectedAlbum.name)}.zip`);
+    } catch (error) {
+      console.error('Failed to download album:', error);
+      alert('Album download failed. Please try again.');
+    } finally {
+      setIsDownloadingAlbum(false);
+    }
+  };
+
   if (selectedAlbum) {
     return (
       <div className="space-y-8 max-w-7xl mx-auto pb-20">
@@ -97,7 +152,10 @@ export const GalleryPaPage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-xl"><Download className="w-4 h-4 mr-2" /> Download All</Button>
+            <Button variant="outline" className="rounded-xl" onClick={handleDownloadAlbum} disabled={isDownloadingAlbum}>
+              <Download className="w-4 h-4 mr-2" />
+              {isDownloadingAlbum ? 'Downloading...' : 'Download All'}
+            </Button>
           </div>
         </header>
 
@@ -218,10 +276,10 @@ export const GalleryPaPage: React.FC = () => {
         {filteredAlbums.map((album) => (
           <div 
             key={album.id} 
-            className="group relative bg-white rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl transition-all cursor-pointer"
+            className="group relative bg-white rounded-4xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl transition-all cursor-pointer"
             onClick={() => setSelectedAlbum(album)}
           >
-            <div className="aspect-[16/9] bg-slate-100 overflow-hidden relative">
+            <div className="aspect-video bg-slate-100 overflow-hidden relative">
                <img src={album.coverPhotoUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                <div className="absolute top-4 right-4 flex gap-2">
                   <div className="px-3 py-1 bg-black/50 backdrop-blur-md rounded-full text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1">

@@ -451,7 +451,34 @@ export const GreetingsPaPage: React.FC = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl"><Download className="w-4 h-4 mr-2" /> Export CSV</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => {
+                    if (!historyLogs.length) return;
+                    const header = ['Date', 'Contact Name', 'Occasion', 'Channel', 'Status'];
+                    const rows = historyLogs.map(item => [
+                      item.created_at?.split('T')[0] || '',
+                      '"' + (item.contact_name?.replace(/"/g, '""') || '') + '"',
+                      item.occasion,
+                      item.channel,
+                      item.status
+                    ]);
+                    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.download = 'greeting-history.csv';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    document.body.removeChild(anchor);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" /> Export CSV
+                </Button>
                 <Button variant="outline" size="sm" className="rounded-xl"><Download className="w-4 h-4 mr-2" /> Export PDF</Button>
               </div>
             </div>
