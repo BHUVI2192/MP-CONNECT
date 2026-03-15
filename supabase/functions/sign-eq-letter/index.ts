@@ -17,6 +17,27 @@ serve(async (req) => {
     }
 
     try {
+        const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
+        const supabaseAnon = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || ''
+        );
+        const token = authHeader.replace('Bearer ', '').trim();
+        const { data: authData, error: authError } = await supabaseAnon.auth.getUser(token);
+        if (authError || !authData.user) {
+            return new Response(JSON.stringify({ error: 'Unauthorized caller' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
         const { eq_request_id, signature_base64 } = await req.json();
 
         if (!eq_request_id || !signature_base64) {
@@ -30,6 +51,20 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_URL')!,
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
+
+        const { data: callerProfile } = await supabase
+            .from('profiles')
+            .select('role, is_active')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+        const callerRole = String(callerProfile?.role ?? '').toUpperCase();
+        if (!callerProfile?.is_active || !['PA', 'MP', 'ADMIN'].includes(callerRole)) {
+            return new Response(JSON.stringify({ error: 'Forbidden: role not allowed for e-sign approval' }), {
+                status: 403,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
 
         // 1. Fetch EQ request to get the draft letter path
         const { data: eq, error: eqError } = await supabase
@@ -129,16 +164,11 @@ serve(async (req) => {
             });
         }
 
-        // 9. Invoke the email-sending Edge Function
-        const emailResult = await supabase.functions.invoke('send-eq-email', {
-            body: { eq_request_id },
-        });
-
         return new Response(
             JSON.stringify({
                 path: signedPath,
                 signature_stored: sigPath,
-                email_invoked: !emailResult.error,
+                email_invoked: false,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

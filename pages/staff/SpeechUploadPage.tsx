@@ -125,6 +125,13 @@ export const SpeechUploadPage: React.FC = () => {
 
     setIsTranscribing(true);
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('No active authenticated session found. Please sign in again.');
+      }
+
       const path = `speech-transcripts/${Date.now()}_${formData.audioFile.name}`;
       const { error: uploadError } = await supabase.storage.from('daybook-audio').upload(path, formData.audioFile, {
         upsert: false,
@@ -134,6 +141,9 @@ export const SpeechUploadPage: React.FC = () => {
       if (uploadError) throw uploadError;
 
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           storage_path: path,
           bucket: 'daybook-audio',

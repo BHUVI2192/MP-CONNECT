@@ -23,6 +23,7 @@ export function useComplaints() {
 
   const fetch = useCallback(async () => {
     setLoading(true);
+    setError(null);
     const { data, error } = await supabase.from('complaints')
       .select('*')
       .order('created_at', { ascending: false });
@@ -31,7 +32,24 @@ export function useComplaints() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    void fetch();
+
+    const channel = supabase
+      .channel('complaints-hook-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'complaints' },
+        () => {
+          void fetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetch]);
 
   const updateStatus = useCallback(async (
     id: string,
@@ -40,7 +58,7 @@ export function useComplaints() {
   ) => {
     const update: Partial<Complaint> = { status };
     if (notes) update.staff_notes = notes;
-    const { error } = await supabase.from('complaints')
+    const { error } = await (supabase.from('complaints') as any)
       .update(update)
       .eq('id', id);
     if (!error) setComplaints(prev => prev.map(c => c.id === id ? { ...c, ...update } : c));
@@ -48,8 +66,13 @@ export function useComplaints() {
   }, []);
 
   const addComplaint = useCallback(async (complaint: Omit<Complaint, 'id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await supabase.from('complaints')
-      .insert(complaint)
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = {
+      ...complaint,
+      submitted_by: user?.id ?? null,
+    };
+    const { data, error } = await (supabase.from('complaints') as any)
+      .insert(payload)
       .select()
       .single();
     if (!error && data) setComplaints(prev => [data, ...prev]);

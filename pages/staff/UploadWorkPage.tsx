@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2,
@@ -31,6 +31,7 @@ import {
     Info
 } from 'lucide-react';
 import { devWorksApi } from '../../hooks/useDevelopmentWorks';
+import { useLgdLocations } from '../../hooks/useLgdLocations';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
@@ -53,9 +54,25 @@ const WORK_TYPES: { id: WorkType; label: string; icon: any }[] = [
     { id: 'Upgrade', label: 'Upgrade', icon: Plus },
 ];
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error(message)), ms);
+        promise
+            .then((value) => {
+                window.clearTimeout(timer);
+                resolve(value);
+            })
+            .catch((error) => {
+                window.clearTimeout(timer);
+                reject(error);
+            });
+    });
+}
+
 export const UploadWorkPage: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(0);
+    const [selectedState, setSelectedState] = useState('Karnataka');
 
     // Form State
     const [formData, setFormData] = useState<DevelopmentWork>({
@@ -65,7 +82,7 @@ export const UploadWorkPage: React.FC = () => {
         type: 'New Construction',
         status: 'Ongoing',
         description: { project: '', history: '', workDone: '' },
-        location: { zilla: 'Mysuru', taluk: '', gp: '', village: '', address: '', coordinates: { lat: 12.2958, lng: 76.6394 } },
+        location: { state: 'Karnataka', zilla: '', taluk: '', gp: '', village: '', address: '', coordinates: { lat: 12.2958, lng: 76.6394 } },
         metrics: { beneficiaries: 0, budget: 0, fundingSource: 'MPLADS', startDate: '', completionDate: '' },
         media: { photos: [], videos: [] },
         visibility: { publicPortal: true, featureOnHomepage: false },
@@ -75,6 +92,50 @@ export const UploadWorkPage: React.FC = () => {
 
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [formError, setFormError] = useState<string | null>(null);
+    const {
+        states: stateOptions,
+        districts: zillaOptions,
+        taluks: talukOptions,
+        gps: gpOptions,
+        villages: villageOptions,
+        loading: locationsLoading,
+    } = useLgdLocations(selectedState, formData.location.zilla, formData.location.taluk, formData.location.gp);
+
+    // Local media file state for the Media tab
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
+    const [localPhotos, setLocalPhotos] = useState<{ id: string; file: File; preview: string }[]>([]);
+    const [localVideos, setLocalVideos] = useState<{ id: string; file: File }[]>([]);
+
+    const handlePhotoFiles = useCallback((files: FileList | null) => {
+        if (!files) return;
+        const newPhotos = Array.from(files).map(file => ({
+            id: Math.random().toString(36).slice(2),
+            file,
+            preview: URL.createObjectURL(file),
+        }));
+        setLocalPhotos(prev => [...prev, ...newPhotos]);
+    }, []);
+
+    const handleVideoFiles = useCallback((files: FileList | null) => {
+        if (!files) return;
+        const newVids = Array.from(files).map(file => ({
+            id: Math.random().toString(36).slice(2),
+            file,
+        }));
+        setLocalVideos(prev => [...prev, ...newVids]);
+    }, []);
+
+    const handlePhotoDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        handlePhotoFiles(e.dataTransfer.files);
+    }, [handlePhotoFiles]);
+
+    const handleVideoDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        handleVideoFiles(e.dataTransfer.files);
+    }, [handleVideoFiles]);
 
     const tabs = [
         { id: 'basic', label: 'Basic Info', icon: Info },
@@ -92,34 +153,112 @@ export const UploadWorkPage: React.FC = () => {
         return false;
     };
 
+    const validateBeforeUpload = () => {
+        if (!formData.title.trim()) {
+            setActiveTab(0);
+            return 'Project title is required.';
+        }
+
+        if (!selectedState || !formData.location.zilla || !formData.location.taluk) {
+            setActiveTab(2);
+            return 'State, Zilla, and Taluk are required.';
+        }
+
+        if (!formData.location.gp || !formData.location.village) {
+            setActiveTab(2);
+            return 'Please select both GP and Village before upload.';
+        }
+
+        if (!formData.location.address.trim()) {
+            setActiveTab(2);
+            return 'Specific location address is required.';
+        }
+
+        return null;
+    };
+
     const handleUpload = async () => {
-        setUploading(true);
-        const statusMap: Record<string, string> = {
-            Ongoing: 'ONGOING', Completed: 'COMPLETED', Planned: 'PLANNED',
-        };
-        const { error } = await devWorksApi.create({
-            work_title: formData.title,
-            sector: formData.sector,
-            work_type: formData.type ?? null,
-            description: formData.description?.project ?? null,
-            history: formData.description?.history ?? null,
-            work_done: formData.description?.workDone ?? null,
-            status: (statusMap[formData.status] ?? 'ONGOING') as any,
-            zilla: formData.location?.zilla ?? null,
-            taluk: formData.location?.taluk ?? null,
-            gram_panchayat: formData.location?.gp ?? null,
-            village: formData.location?.village ?? null,
-            location_address: formData.location?.address ?? null,
-            beneficiaries: formData.metrics?.beneficiaries ?? null,
-            budget: formData.metrics?.budget ?? null,
-            funding_source: formData.metrics?.fundingSource ?? null,
-            start_date: formData.metrics?.startDate || null,
-            completion_date: formData.metrics?.completionDate || null,
-            is_public: formData.visibility?.publicPortal ?? true,
-        } as any);
-        setUploading(false);
-        if (error) { console.error('[DB] uploadWork:', error.message, error); alert('Upload failed: ' + error.message); return; }
-        navigate('/staff/works');
+        const validationMessage = validateBeforeUpload();
+        if (validationMessage) {
+            setFormError(validationMessage);
+            alert(validationMessage);
+            return;
+        }
+
+        setFormError(null);
+        try {
+            setUploading(true);
+            setUploadProgress(10);
+
+            const statusMap: Record<string, 'PLANNED' | 'ONGOING' | 'COMPLETED'> = {
+                Ongoing: 'ONGOING',
+                Completed: 'COMPLETED',
+                Planned: 'PLANNED',
+            };
+
+            const budgetValue = Number.isFinite(formData.metrics?.budget)
+                ? Number(formData.metrics?.budget)
+                : 0;
+            const schemeName = formData.metrics?.fundingSource === 'Other'
+                ? 'OTHER'
+                : (formData.metrics?.fundingSource ?? 'MPLADS');
+
+            const { data: created, error } = await withTimeout(devWorksApi.create({
+                work_title: formData.title,
+                sector: formData.sector,
+                work_type: formData.type ?? null,
+                description: formData.description?.project ?? null,
+                history: formData.description?.history ?? null,
+                work_done: formData.description?.workDone ?? null,
+                state: formData.location?.state ?? selectedState ?? null,
+                status: statusMap[formData.status] ?? 'ONGOING',
+                location_address: formData.location?.address ?? null,
+                beneficiaries: formData.metrics?.beneficiaries ?? null,
+                budget: budgetValue > 0 ? budgetValue : null,
+                funding_source: schemeName,
+                zilla: formData.location?.zilla ?? null,
+                taluk: formData.location?.taluk ?? null,
+                gram_panchayat: formData.location?.gp ?? null,
+                village: formData.location?.village ?? null,
+                start_date: formData.metrics?.startDate || null,
+                completion_date: formData.metrics?.completionDate || null,
+                is_public: formData.visibility?.publicPortal ?? true,
+            } as any), 15000, 'Project creation timed out. Please check Supabase connectivity and try again.');
+
+            if (error || !created?.work_id) {
+                throw new Error(error?.message || 'Failed to create project record');
+            }
+
+            setUploadProgress(55);
+            const allMedia = [
+                ...localPhotos.map((p) => ({ file: p.file, type: 'PHOTO' as const })),
+                ...localVideos.map((v) => ({ file: v.file, type: 'VIDEO' as const })),
+            ];
+
+            if (allMedia.length > 0) {
+                for (let i = 0; i < allMedia.length; i += 1) {
+                    const item = allMedia[i];
+                    await withTimeout(
+                        devWorksApi.uploadMedia(created.work_id, item.file, item.type),
+                        30000,
+                        `Media upload timed out for ${item.file.name}.`
+                    );
+                    const mediaProgress = 55 + Math.round(((i + 1) / allMedia.length) * 40);
+                    setUploadProgress(mediaProgress);
+                }
+            }
+
+            setUploadProgress(100);
+            await new Promise((resolve) => window.setTimeout(resolve, 300));
+            setUploading(false);
+            navigate('/staff/entry');
+        } catch (error) {
+            setUploading(false);
+            setUploadProgress(0);
+            const message = error instanceof Error ? error.message : 'Upload failed. Please try again.';
+            console.error('[DB] uploadWork:', message, error);
+            alert(`Upload failed: ${message}`);
+        }
     };
 
     const renderTabContent = () => {
@@ -231,33 +370,123 @@ export const UploadWorkPage: React.FC = () => {
             case 2: // Location
                 return (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { label: 'Zilla', value: formData.location.zilla },
-                                { label: 'Taluk', value: formData.location.taluk, type: 'taluk' },
-                                { label: 'GP', value: formData.location.gp, type: 'gp' },
-                                { label: 'Village', value: formData.location.village, type: 'village' }
-                            ].map((loc, i) => (
-                                <div key={i} className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loc.label}</label>
-                                    <select
-                                        className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
-                                        value={loc.value}
-                                        onChange={e => setFormData({
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">State</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
+                                    value={selectedState}
+                                    onChange={e => {
+                                        const nextState = e.target.value;
+                                        setSelectedState(nextState);
+                                        setFormData({
                                             ...formData,
-                                            location: { ...formData.location, [loc.type || 'zilla']: e.target.value }
-                                        })}
-                                    >
-                                        <option value="">Select {loc.label}</option>
-                                        {i === 0 && <option value="Mysuru">Mysuru</option>}
-                                        {i === 1 && <option value="Nanjangud">Nanjangud</option>}
-                                        {i === 1 && <option value="Hunsur">Hunsur</option>}
-                                        {i === 2 && <option value="GP-01">GP-01</option>}
-                                        {i === 3 && <option value="Village-A">Village-A</option>}
-                                    </select>
-                                </div>
-                            ))}
+                                            location: {
+                                                ...formData.location,
+                                                state: nextState,
+                                                zilla: '',
+                                                taluk: '',
+                                                gp: '',
+                                                village: '',
+                                            }
+                                        });
+                                    }}
+                                >
+                                    <option value="">Select State</option>
+                                    {stateOptions.map((s) => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zilla</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
+                                    value={formData.location.zilla}
+                                    onChange={e => setFormData({
+                                        ...formData,
+                                        location: {
+                                            ...formData.location,
+                                            zilla: e.target.value,
+                                            taluk: '',
+                                            gp: '',
+                                            village: '',
+                                        }
+                                    })}
+                                >
+                                    <option value="">Select Zilla</option>
+                                    {zillaOptions.map((z) => (
+                                        <option key={z} value={z}>{z}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taluk</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
+                                    value={formData.location.taluk}
+                                    onChange={e => setFormData({
+                                        ...formData,
+                                        location: {
+                                            ...formData.location,
+                                            taluk: e.target.value,
+                                            gp: '',
+                                            village: '',
+                                        }
+                                    })}
+                                    disabled={!selectedState || !formData.location.zilla}
+                                >
+                                    <option value="">Select Taluk</option>
+                                    {talukOptions.map((t) => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GP</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
+                                    value={formData.location.gp}
+                                    onChange={e => setFormData({
+                                        ...formData,
+                                        location: {
+                                            ...formData.location,
+                                            gp: e.target.value,
+                                            village: '',
+                                        }
+                                    })}
+                                    disabled={!selectedState || !formData.location.taluk}
+                                >
+                                    <option value="">Select GP</option>
+                                    {gpOptions.map((g) => (
+                                        <option key={g} value={g}>{g}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Village</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl font-bold text-xs outline-none focus:border-primary transition-all"
+                                    value={formData.location.village}
+                                    onChange={e => setFormData({
+                                        ...formData,
+                                        location: { ...formData.location, village: e.target.value }
+                                    })}
+                                    disabled={!selectedState || !formData.location.taluk || !formData.location.gp}
+                                >
+                                    <option value="">Select Village</option>
+                                    {villageOptions.map((v) => (
+                                        <option key={v} value={v}>{v}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
+                        {locationsLoading && (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading location directory...</p>
+                        )}
 
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Specific Location Address</label>
@@ -281,10 +510,42 @@ export const UploadWorkPage: React.FC = () => {
                                     <p className="text-xs font-black text-slate-900">{formData.location.coordinates?.lat.toFixed(4)}, {formData.location.coordinates?.lng.toFixed(4)}</p>
                                 </div>
                             </div>
-                            <div className="h-64 bg-slate-100 rounded-[2rem] border-4 border-white shadow-inner flex items-center justify-center relative overflow-hidden group">
-                                <MapPin className="text-primary animate-bounce z-10" size={32} />
-                                <div className="absolute inset-0 bg-slate-200 opacity-20 group-hover:opacity-40 transition-opacity" />
-                                <p className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm border border-white">Interactive Map Placeholder</p>
+                            <div className="h-64 bg-slate-100 rounded-[2rem] border-4 border-white shadow-inner relative overflow-hidden">
+                                <iframe
+                                    title="Project location map"
+                                    className="absolute inset-0 w-full h-full"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    src={`https://www.google.com/maps?q=${encodeURIComponent(
+                                        [
+                                            formData.location.address,
+                                            formData.location.village,
+                                            formData.location.gp,
+                                            formData.location.taluk,
+                                            formData.location.zilla,
+                                            selectedState,
+                                            'India',
+                                        ].filter(Boolean).join(', ')
+                                    )}&output=embed`}
+                                />
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                        [
+                                            formData.location.address,
+                                            formData.location.village,
+                                            formData.location.gp,
+                                            formData.location.taluk,
+                                            formData.location.zilla,
+                                            selectedState,
+                                            'India',
+                                        ].filter(Boolean).join(', ')
+                                    )}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-700 shadow-sm border border-white"
+                                >
+                                    Open in Google Maps
+                                </a>
                             </div>
                         </div>
                     </motion.div>
@@ -360,9 +621,14 @@ export const UploadWorkPage: React.FC = () => {
                                     <h4 className="text-xl font-black text-slate-900 tracking-tight">Photos</h4>
                                     <p className="text-xs font-medium text-slate-400">Upload up to 50 photos (Max 20MB per file)</p>
                                 </div>
-                                <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1 rounded-full">{formData.media.photos.length} / 50</span>
+                                <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1 rounded-full">{localPhotos.length} / 50</span>
                             </div>
-                            <div className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-12 text-center space-y-4 hover:border-primary/20 hover:bg-primary/5 transition-all cursor-pointer group">
+                            <div
+                                className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-12 text-center space-y-4 hover:border-primary/20 hover:bg-primary/5 transition-all cursor-pointer group"
+                                onClick={() => photoInputRef.current?.click()}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={handlePhotoDrop}
+                            >
                                 <div className="w-20 h-20 bg-white shadow-lg rounded-2xl flex items-center justify-center mx-auto text-slate-300 group-hover:text-primary group-hover:scale-110 transition-all">
                                     <Upload size={32} />
                                 </div>
@@ -370,7 +636,30 @@ export const UploadWorkPage: React.FC = () => {
                                     <p className="text-lg font-black text-slate-900 tracking-tight">Drag photos here</p>
                                     <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">or click to browse from device</p>
                                 </div>
+                                <input
+                                    ref={photoInputRef}
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => { handlePhotoFiles(e.target.files); e.target.value = ''; }}
+                                />
                             </div>
+                            {localPhotos.length > 0 && (
+                                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                                    {localPhotos.map(p => (
+                                        <div key={p.id} className="group relative aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 bg-white">
+                                            <img src={p.preview} alt="" className="w-full h-full object-cover" />
+                                            <button
+                                                onClick={() => setLocalPhotos(prev => prev.filter(x => x.id !== p.id))}
+                                                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Videos Section */}
@@ -380,9 +669,14 @@ export const UploadWorkPage: React.FC = () => {
                                     <h4 className="text-xl font-black text-slate-900 tracking-tight">Videos</h4>
                                     <p className="text-xs font-medium text-slate-400">Upload up to 10 videos (Max 500MB per file)</p>
                                 </div>
-                                <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1 rounded-full">{formData.media.videos.length} / 10</span>
+                                <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1 rounded-full">{localVideos.length} / 10</span>
                             </div>
-                            <div className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-12 text-center space-y-4 hover:border-primary/20 hover:bg-primary/5 transition-all cursor-pointer group">
+                            <div
+                                className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-12 text-center space-y-4 hover:border-primary/20 hover:bg-primary/5 transition-all cursor-pointer group"
+                                onClick={() => videoInputRef.current?.click()}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={handleVideoDrop}
+                            >
                                 <div className="w-20 h-20 bg-white shadow-lg rounded-2xl flex items-center justify-center mx-auto text-slate-300 group-hover:text-primary group-hover:scale-110 transition-all">
                                     <Video size={32} />
                                 </div>
@@ -390,7 +684,36 @@ export const UploadWorkPage: React.FC = () => {
                                     <p className="text-lg font-black text-slate-900 tracking-tight">Drag videos here</p>
                                     <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Supports MP4, AVI, MOV, MKV</p>
                                 </div>
+                                <input
+                                    ref={videoInputRef}
+                                    type="file"
+                                    multiple
+                                    accept="video/*"
+                                    className="hidden"
+                                    onChange={e => { handleVideoFiles(e.target.files); e.target.value = ''; }}
+                                />
                             </div>
+                            {localVideos.length > 0 && (
+                                <div className="space-y-3">
+                                    {localVideos.map(v => (
+                                        <div key={v.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl">
+                                            <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center">
+                                                <Video size={20} className="text-white" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-black text-slate-900 truncate">{v.file.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">{(v.file.size / (1024 * 1024)).toFixed(1)} MB</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setLocalVideos(prev => prev.filter(x => x.id !== v.id))}
+                                                className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 );
@@ -488,7 +811,7 @@ export const UploadWorkPage: React.FC = () => {
                     <h2 className="text-4xl font-black text-slate-900 tracking-tighter">New Development Work</h2>
                     <p className="text-slate-500 font-medium mt-1">Populate project metadata for official records and public portal.</p>
                 </div>
-                <button onClick={() => navigate('/staff/works')} className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-red-500 transition-all flex items-center gap-2 font-bold text-sm">
+                <button onClick={() => navigate('/staff/entry')} className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-red-500 transition-all flex items-center gap-2 font-bold text-sm">
                     <X size={20} /> Discard
                 </button>
             </header>
@@ -514,6 +837,11 @@ export const UploadWorkPage: React.FC = () => {
 
             <main className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/20 flex-1 flex flex-col mb-32 overflow-hidden">
                 <div className="flex-1 p-8 md:p-16">
+                    {formError && (
+                        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                            {formError}
+                        </div>
+                    )}
                     {renderTabContent()}
                 </div>
             </main>

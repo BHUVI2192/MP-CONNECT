@@ -4,13 +4,17 @@ import { Card } from '../../components/UI/Card';
 import { Button } from '../../components/UI/Button';
 import { Search, Filter, AlertCircle, Clock, CheckCircle2, MoreVertical, Flag } from 'lucide-react';
 
-import { useMockData } from '../../context/MockDataContext';
-import { Complaint } from '../../types';
 import { useState } from 'react';
+import { useComplaints } from '../../hooks/useComplaints';
 
 export const ComplaintsMpPage: React.FC = () => {
-  const { complaints, updateComplaintStatus } = useMockData();
-  const [activeTab, setActiveTab] = useState('Forwarded');
+  const { complaints, updateStatus, loading, error } = useComplaints();
+  const [activeTab, setActiveTab] = useState<'Pending' | 'Resolved'>('Pending');
+
+  const pendingComplaints = complaints.filter((c) => c.status !== 'Resolved' && c.status !== 'Rejected');
+  const resolvedComplaints = complaints.filter((c) => c.status === 'Resolved');
+  const visibleComplaints = activeTab === 'Pending' ? pendingComplaints : resolvedComplaints;
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <header className="flex justify-between items-center">
@@ -27,8 +31,8 @@ export const ComplaintsMpPage: React.FC = () => {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Pending Review', count: complaints.filter(c => c.status === 'Forwarded').length, color: 'bg-blue-100 text-blue-600' },
-          { label: 'Resolved', count: complaints.filter(c => c.status === 'Resolved').length, color: 'bg-green-100 text-green-600' },
+          { label: 'Pending Review', count: pendingComplaints.length, color: 'bg-blue-100 text-blue-600' },
+          { label: 'Resolved', count: resolvedComplaints.length, color: 'bg-green-100 text-green-600' },
           { label: 'High Priority', count: complaints.filter(c => c.priority === 'High').length, color: 'bg-red-100 text-red-600' },
         ].map((stat) => (
           <Card key={stat.label} className="p-4 border-none shadow-sm flex flex-col items-center text-center">
@@ -39,17 +43,23 @@ export const ComplaintsMpPage: React.FC = () => {
       </div>
 
       <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
-        {['Forwarded', 'Resolved'].map((tab) => (
+        {(['Pending', 'Resolved'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
               }`}
           >
-            {tab === 'Forwarded' ? 'Pending Review' : tab}
+            {tab === 'Pending' ? 'Pending Review' : tab}
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          Failed to load complaints: {error}
+        </div>
+      )}
 
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -79,7 +89,15 @@ export const ComplaintsMpPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {complaints.filter(c => c.status === activeTab).map((item) => (
+              {loading ? (
+                <tr>
+                  <td className="px-6 py-8 text-sm font-medium text-slate-500" colSpan={6}>Loading complaints...</td>
+                </tr>
+              ) : visibleComplaints.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-8 text-sm font-medium text-slate-500" colSpan={6}>No complaints found for this tab.</td>
+                </tr>
+              ) : visibleComplaints.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-start gap-3">
@@ -92,7 +110,7 @@ export const ComplaintsMpPage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{item.citizenName}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{item.citizen_name}</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${item.priority === 'High' ? 'text-red-600' :
                         item.priority === 'Medium' ? 'text-orange-600' : 'text-slate-400'
@@ -102,19 +120,19 @@ export const ComplaintsMpPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.status === 'Resolved' ? 'bg-green-100 text-green-700' :
-                        item.status === 'Forwarded' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                        'bg-blue-100 text-blue-700'
                       }`}>
                       {item.status === 'Resolved' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {item.status === 'Forwarded' ? 'Under Review' : item.status}
+                      {item.status}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-400 font-medium">{item.createdAt}</td>
+                  <td className="px-6 py-4 text-sm text-slate-400 font-medium">{new Date(item.created_at).toLocaleDateString('en-IN')}</td>
                   <td className="px-6 py-4 text-right">
-                    {item.status === 'Forwarded' && (
+                    {item.status !== 'Resolved' && item.status !== 'Rejected' && (
                       <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                        onClick={() => updateComplaintStatus(item.id, 'Resolved')}
+                        onClick={() => { void updateStatus(item.id, 'Resolved'); }}
                       >
                         Resolve
                       </Button>

@@ -117,15 +117,13 @@ export const DaybookPaPage: React.FC = () => {
                             setActiveTab('today');
                             setSelectedDate(new Date());
                         }}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'today' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
-                            }`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'today' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-black border border-slate-200 hover:bg-slate-100'} `}
                     >
                         <CalendarIcon className="w-4 h-4" /> Today
                     </button>
                     <button
                         onClick={() => setActiveTab('past')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'past' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-white/50'
-                            }`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'past' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-black border border-slate-200 hover:bg-slate-100'} `}
                     >
                         <History className="w-4 h-4" /> Past Days
                     </button>

@@ -61,8 +61,8 @@ const parseMinsFromDuration = (d: string): number => {
 };
 
 // Use local date (not UTC) to avoid timezone-shift bugs in UTC+ zones like IST
-const toLocalDateStr = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const toLocalDateString = (d: Date = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export const PlanTodayPage: React.FC = () => {
   const { events, addEvent, updateEvent } = useMockData();
@@ -77,8 +77,8 @@ export const PlanTodayPage: React.FC = () => {
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  const selectedDateStr = toLocalDateStr(selectedDate);
-  const todayStr = toLocalDateStr(new Date());
+  const selectedDateStr = toLocalDateString(selectedDate);
+  const todayStr = toLocalDateString();
 
   const dayEvents = useMemo(() =>
     [...events.filter(e => e.date === selectedDateStr)]
@@ -185,14 +185,18 @@ export const PlanTodayPage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header Bar */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">{formattedDate}</h1>
-          <p className="text-slate-500 mt-1">Daily Schedule Planning for Hon'ble MP</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <header className="portal-pa-hero mb-8">
+        <div className="absolute inset-y-0 right-0 w-72 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18),transparent_60%)]" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-700 mb-3">PA Workflow</p>
+            <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{formattedDate}</h1>
+            <p className="text-slate-700 mt-2 font-medium">Daily schedule planning for Hon'ble MP.</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant="outline"
+            className="border-white/20 bg-white/10 text-slate-900 hover:bg-white hover:text-slate-900"
             onClick={() => {
               setEditingEvent(null);
               setIsModalOpen(true);
@@ -204,6 +208,7 @@ export const PlanTodayPage: React.FC = () => {
           </Button>
           <Button
             variant="outline"
+            className="border-white/20 bg-white/10 text-slate-900 hover:bg-white hover:text-slate-900"
             onClick={() => {
               const tomorrow = new Date(selectedDate);
               tomorrow.setDate(tomorrow.getDate() + 1);
@@ -228,11 +233,12 @@ export const PlanTodayPage: React.FC = () => {
             )}
           </Button>
         </div>
+        </div>
       </header>
 
       {/* Date Navigation */}
       <div className="relative mb-6">
-        <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="portal-pa-shell flex items-center justify-between p-3">
           <Button variant="ghost" size="sm" onClick={() => navigateDay(-1)}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
@@ -260,7 +266,7 @@ export const PlanTodayPage: React.FC = () => {
 
         {/* Mini Calendar Dropdown */}
         {showCalendar && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl z-20 p-4">
+          <div className="absolute top-full left-0 right-0 mt-2 portal-pa-modal z-20 p-4">
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth() - 1); setCalendarMonth(d); }}
@@ -313,7 +319,7 @@ export const PlanTodayPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+      <div className="portal-pa-shell rounded-2xl overflow-hidden min-h-125 flex flex-col">
         {dayEvents.filter(e => e.status !== 'Cancelled').length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
             <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
@@ -330,7 +336,7 @@ export const PlanTodayPage: React.FC = () => {
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-6 relative" ref={timelineRef}>
-            <div className="relative ml-16 min-h-[1080px]">
+            <div className="relative ml-16 min-h-270">
               {HOURS.map(hour => (
                 <div
                   key={hour}
@@ -370,7 +376,7 @@ export const PlanTodayPage: React.FC = () => {
                         <div className="flex items-center gap-3 mt-2 text-xs opacity-70">
                           <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            <span className="truncate max-w-[150px]">{event.location?.name || '—'}</span>
+                            <span className="truncate max-w-37.5">{event.location?.name || '—'}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
@@ -412,14 +418,14 @@ export const PlanTodayPage: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60]"
+              className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-60"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-[70] flex flex-col"
+              className="fixed right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl z-70 flex flex-col"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -452,15 +458,15 @@ export const PlanTodayPage: React.FC = () => {
       {/* Finalize Confirmation Dialog */}
       <AnimatePresence>
         {showFinalizeConfirm && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
+          <div className="fixed inset-0 flex items-center justify-center z-100 p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="portal-pa-modal-backdrop"
               onClick={() => setShowFinalizeConfirm(false)}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative z-10 text-center"
+              className="portal-pa-modal rounded-2xl p-8 max-w-md w-full relative z-10 text-center"
             >
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Info className="w-8 h-8" />
@@ -504,8 +510,8 @@ const EventForm: React.FC<EventFormProps> = ({ initialData, defaultDate, onSave,
   const [personContact, setPersonContact] = useState('');
   const [formError, setFormError] = useState('');
 
-  const todayStr = toLocalDateStr(new Date());
-  const tomorrowStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toLocalDateStr(d); })();
+  const todayStr = toLocalDateString();
+  const tomorrowStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toLocalDateString(d); })();
 
   const handleAddPerson = () => {
     if (personName.trim()) {
@@ -697,10 +703,10 @@ const EventForm: React.FC<EventFormProps> = ({ initialData, defaultDate, onSave,
         </p>
       )}
       <div className="pt-6 border-t border-slate-100 flex flex-wrap gap-3">
-        <Button type="button" variant="outline" className="flex-1 min-w-[120px]" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" className="flex-1 min-w-30" onClick={onCancel}>Cancel</Button>
         {!initialData && (
           <Button
-            type="button" variant="outline" className="flex-1 min-w-[160px]"
+            type="button" variant="outline" className="flex-1 min-w-40"
             onClick={() => {
               if (!title.trim() || !time) {
                 setFormError('Event Title and Time are required.');
@@ -715,7 +721,7 @@ const EventForm: React.FC<EventFormProps> = ({ initialData, defaultDate, onSave,
             Save & Add Another
           </Button>
         )}
-        <Button type="button" className="flex-1 min-w-[120px]" onClick={() => handleSave(true)}>
+        <Button type="button" className="flex-1 min-w-30" onClick={() => handleSave(true)}>
           {initialData ? 'Update Event' : 'Save & Done'}
         </Button>
       </div>

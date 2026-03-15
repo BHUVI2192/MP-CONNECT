@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Camera,
     ChevronLeft,
@@ -10,11 +10,12 @@ import {
     Phone,
     User,
     FileText,
-    Plus,
     Star
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Contact, ContactCategory, ContactLocation } from '../../types';
+import { ContactCategory } from '../../types';
+import { supabase } from '../../lib/supabase';
+import { useLgdLocations } from '../../hooks/useLgdLocations';
 
 const STEPS = [
     { id: 1, label: 'Basic Info', icon: User },
@@ -29,7 +30,11 @@ export const ContactFormPage: React.FC = () => {
     const isEdit = !!id;
 
     const [currentStep, setCurrentStep] = useState(1);
-    const [formData, setFormData] = useState<any>({
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+    const [formData, setFormData] = useState({
         name: '',
         designation: '',
         organization: '',
@@ -37,20 +42,53 @@ export const ContactFormPage: React.FC = () => {
         mobile: '',
         whatsapp: '',
         email: '',
+        fullAddress: '',
+        notes: '',
+        birthday: '',
+        anniversary: '',
         location: {
-            state: '',
+            state: 'Karnataka',
             zilla: '',
             taluk: '',
             gp: '',
             village: ''
         },
         isVip: false,
-        addedAt: new Date().toISOString()
+        photoFile: null as File | null,
     });
+
+    const {
+        states: stateOptions,
+        districts: zillaOptions,
+        taluks: talukOptions,
+        gps: gpOptions,
+        villages: villageOptions,
+    } = useLgdLocations(
+        formData.location.state,
+        formData.location.zilla,
+        formData.location.taluk,
+        formData.location.gp
+    );
 
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+    const categoryOptions: Array<{ value: ContactCategory; label: string }> = [
+        { value: 'VOTER', label: 'Voter' },
+        { value: 'VILLAGE_HEAD', label: 'Village Head' },
+        { value: 'CONTRACTOR', label: 'Contractor' },
+        { value: 'PARTY_WORKER', label: 'Party Worker' },
+        { value: 'OFFICIAL', label: 'Official' },
+        { value: 'OTHER', label: 'Other' },
+    ];
+
+    const toMonthDay = (date: string) => {
+        if (!date) return null;
+        const parts = date.split('-');
+        if (parts.length !== 3) return null;
+        return `${parts[1]}-${parts[2]}`;
+    };
 
     const handleNext = () => {
         if (currentStep < 4) setCurrentStep(currentStep + 1);
@@ -61,33 +99,57 @@ export const ContactFormPage: React.FC = () => {
     };
 
     const handleSave = async () => {
+        setSaveError(null);
+        setSaveSuccess(null);
+
+        if (!formData.name.trim()) {
+            setSaveError('Full Name is required.');
+            return;
+        }
+        if (!formData.mobile.trim()) {
+            setSaveError('Primary Mobile is required.');
+            return;
+        }
+
         try {
-            const submitData = new FormData();
+            setIsSaving(true);
 
-            // Remove photoFile from json data
-            const { photoFile, ...contactData } = formData;
-            submitData.append('contactData', JSON.stringify({ ...contactData, tags }));
+            const payload = {
+                full_name: formData.name.trim(),
+                designation: formData.designation.trim() || null,
+                organization: formData.organization.trim() || null,
+                category: formData.category,
+                mobile: formData.mobile.trim(),
+                email: formData.email.trim() || null,
+                state: formData.location.state || null,
+                zilla: formData.location.zilla || null,
+                taluk: formData.location.taluk || null,
+                gram_panchayat: formData.location.gp || null,
+                village: formData.location.village || null,
+                address: formData.fullAddress.trim() || null,
+                notes: formData.notes.trim() || null,
+                is_vip: formData.isVip,
+                birthday: toMonthDay(formData.birthday),
+                anniversary: toMonthDay(formData.anniversary),
+            };
 
-            if (photoFile) {
-                submitData.append('photo', photoFile);
+            const query = isEdit
+                ? supabase.from('contacts').update(payload).eq('contact_id', id)
+                : supabase.from('contacts').insert(payload);
+
+            const { error } = await query;
+            if (error) {
+                throw new Error(error.message);
             }
 
-            // Simulate API Call for FormData upload
-            const response = await fetch('/api/contacts/save', {
-                method: 'POST',
-                body: submitData
-            });
-
-            if (!response.ok) {
-                // In development without backend, we still allow success for simulation
-                console.warn('Backend API not found, simulating success');
-            }
-
-            alert('Contact saved successfully!');
+            setSaveSuccess(isEdit ? 'Contact updated successfully!' : 'Contact saved successfully!');
             navigate('/staff/contacts');
         } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to save contact.';
             console.error('Error saving contact:', error);
-            alert('Failed to save contact. Please try again.');
+            setSaveError(message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -186,18 +248,18 @@ export const ContactFormPage: React.FC = () => {
                 <div className="space-y-3">
                     <label className="text-sm font-bold text-gray-700 block">Category</label>
                     <div className="flex flex-wrap gap-3">
-                        {['Government', 'Political', 'Community', 'Business', 'Other'].map(cat => (
-                            <label key={cat} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${formData.category === cat ? 'bg-primary/5 border-primary text-primary' : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
+                        {categoryOptions.map(({ value, label }) => (
+                            <label key={value} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${formData.category === value ? 'bg-primary/5 border-primary text-primary' : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
                                 }`}>
                                 <input
                                     type="radio"
                                     className="hidden"
                                     name="category"
-                                    value={cat}
-                                    checked={formData.category === cat}
-                                    onChange={() => setFormData({ ...formData, category: cat as any })}
+                                    value={value}
+                                    checked={formData.category === value}
+                                    onChange={() => setFormData({ ...formData, category: value })}
                                 />
-                                <span className="text-sm font-semibold">{cat}</span>
+                                <span className="text-sm font-semibold">{label}</span>
                             </label>
                         ))}
                     </div>
@@ -275,10 +337,22 @@ export const ContactFormPage: React.FC = () => {
                     <select
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                         value={formData.location?.state}
-                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, state: e.target.value } })}
+                        onChange={(e) => setFormData({
+                            ...formData,
+                            location: {
+                                ...formData.location,
+                                state: e.target.value,
+                                zilla: '',
+                                taluk: '',
+                                gp: '',
+                                village: ''
+                            }
+                        })}
                     >
                         <option value="">Select State</option>
-                        <option value="Karnataka">Karnataka</option>
+                        {stateOptions.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                        ))}
                     </select>
                 </div>
                 <div className="space-y-2">
@@ -287,10 +361,21 @@ export const ContactFormPage: React.FC = () => {
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                         disabled={!formData.location?.state}
                         value={formData.location?.zilla}
-                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, zilla: e.target.value } })}
+                        onChange={(e) => setFormData({
+                            ...formData,
+                            location: {
+                                ...formData.location,
+                                zilla: e.target.value,
+                                taluk: '',
+                                gp: '',
+                                village: ''
+                            }
+                        })}
                     >
                         <option value="">Select Zilla</option>
-                        <option value="Mysuru">Mysuru</option>
+                        {zillaOptions.map((zilla) => (
+                            <option key={zilla} value={zilla}>{zilla}</option>
+                        ))}
                     </select>
                 </div>
                 <div className="space-y-2">
@@ -299,10 +384,41 @@ export const ContactFormPage: React.FC = () => {
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                         disabled={!formData.location?.zilla}
                         value={formData.location?.taluk}
-                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, taluk: e.target.value } })}
+                        onChange={(e) => setFormData({
+                            ...formData,
+                            location: {
+                                ...formData.location,
+                                taluk: e.target.value,
+                                gp: '',
+                                village: ''
+                            }
+                        })}
                     >
                         <option value="">Select Taluk</option>
-                        <option value="Mysuru">Mysuru</option>
+                        {talukOptions.map((taluk) => (
+                            <option key={taluk} value={taluk}>{taluk}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">GP</label>
+                    <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                        disabled={!formData.location?.taluk}
+                        value={formData.location?.gp}
+                        onChange={(e) => setFormData({
+                            ...formData,
+                            location: {
+                                ...formData.location,
+                                gp: e.target.value,
+                                village: ''
+                            }
+                        })}
+                    >
+                        <option value="">Select GP</option>
+                        {gpOptions.map((gp) => (
+                            <option key={gp} value={gp}>{gp}</option>
+                        ))}
                     </select>
                 </div>
                 <div className="space-y-2">
@@ -314,7 +430,9 @@ export const ContactFormPage: React.FC = () => {
                         onChange={(e) => setFormData({ ...formData, location: { ...formData.location!, village: e.target.value } })}
                     >
                         <option value="">Select Village</option>
-                        <option value="Main">Main</option>
+                        {villageOptions.map((village) => (
+                            <option key={village} value={village}>{village}</option>
+                        ))}
                     </select>
                 </div>
             </div>
@@ -324,7 +442,9 @@ export const ContactFormPage: React.FC = () => {
                     rows={3}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                     placeholder="Enter full postal address"
-                ></textarea>
+                    value={formData.fullAddress}
+                    onChange={(e) => setFormData({ ...formData, fullAddress: e.target.value })}
+                />
             </div>
         </div>
     );
@@ -385,7 +505,9 @@ export const ContactFormPage: React.FC = () => {
                     rows={3}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                     placeholder="Special instructions or background info"
-                ></textarea>
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                />
             </div>
 
             <div className="p-4 bg-yellow-50 rounded-2xl border-2 border-yellow-100 flex items-center justify-between">
@@ -435,6 +557,16 @@ export const ContactFormPage: React.FC = () => {
                 {renderStepIndicator()}
 
                 <form onSubmit={(e) => e.preventDefault()}>
+                    {saveError && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                            {saveError}
+                        </div>
+                    )}
+                    {saveSuccess && (
+                        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                            {saveSuccess}
+                        </div>
+                    )}
                     {currentStep === 1 && renderStep1()}
                     {currentStep === 2 && renderStep2()}
                     {currentStep === 3 && renderStep3()}
@@ -456,10 +588,11 @@ export const ContactFormPage: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={handleSave}
+                                disabled={isSaving}
                                 className="flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-95"
                             >
                                 <Save size={20} />
-                                Save Contact
+                                {isSaving ? 'Saving...' : 'Save Contact'}
                             </button>
                         ) : (
                             <button

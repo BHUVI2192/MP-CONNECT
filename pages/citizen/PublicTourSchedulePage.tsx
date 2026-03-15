@@ -29,19 +29,31 @@ export const PublicTourSchedulePage: React.FC = () => {
   const navigate = useNavigate();
   const [tours, setTours] = useState<TourProgram[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
-        .from('tour_programs')
-        .select('id, title, type, start_date, start_time, duration, location_name, location_address, status, participants')
-        .gte('start_date', today)
-        .eq('status', 'Scheduled')
-        .order('start_date', { ascending: true })
-        .limit(30);
-      setTours((data as TourProgram[]) ?? []);
-      setIsLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('tour_programs')
+          .select('id, title, type, start_date, start_time, duration, location_name, location_address, status, participants')
+          .gte('start_date', today)
+          .in('status', ['Scheduled', 'SCHEDULED'])
+          .order('start_date', { ascending: true })
+          .limit(30);
+
+        if (error) throw error;
+
+        setTours((data as TourProgram[]) ?? []);
+        setErrorMessage(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load public schedule.';
+        setErrorMessage(message);
+        setTours([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
     load();
   }, []);
@@ -69,6 +81,14 @@ export const PublicTourSchedulePage: React.FC = () => {
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : errorMessage ? (
+        <Card>
+          <div className="py-12 text-center">
+            <Calendar className="w-12 h-12 text-rose-300 mx-auto mb-4" />
+            <p className="font-bold text-rose-600">Unable to load public events right now.</p>
+            <p className="text-xs text-slate-400 mt-1">{errorMessage}</p>
+          </div>
+        </Card>
       ) : Object.keys(grouped).length === 0 ? (
         <Card>
           <div className="py-12 text-center">

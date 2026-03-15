@@ -35,6 +35,17 @@ const SECTORS = [
   { id: 'Energy', label: 'Energy & Power', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
 ];
 
+const normalizeSector = (value: string) => {
+  const v = value.trim().toLowerCase();
+  if (v.includes('road') || v.includes('bridge') || v.includes('infrastructure')) return 'Roads';
+  if (v.includes('health')) return 'Healthcare';
+  if (v.includes('educat') || v.includes('school')) return 'Education';
+  if (v.includes('water') || v.includes('irrigation')) return 'Water';
+  if (v.includes('agri') || v.includes('farm')) return 'Agriculture';
+  if (v.includes('energy') || v.includes('electric')) return 'Energy';
+  return 'Roads';
+};
+
 const ProjectCard: React.FC<{ project: Project; onClick: () => void }> = ({ project, onClick }) => {
   const statusColors = {
     Completed: 'bg-green-100 text-green-700',
@@ -108,19 +119,19 @@ export const DevelopmentWorksBrowsePage: React.FC = () => {
     devWorksApi.list().then(({ data }: any) => {
       if (data) {
         const statusMap: Record<string, Project['status']> = {
-          PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
+          PLANNED: 'Planned', PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
           COMPLETED: 'Completed', ON_HOLD: 'On Hold',
         };
         setAllProjects(data.map((r: any) => ({
-          id: r.work_id, name: r.work_title, category: r.sector ?? 'Other',
+          id: r.work_id, name: r.work_title, category: normalizeSector(r.sector ?? ''),
           status: statusMap[r.status] ?? 'Planned', progress: r.progress_pct ?? 0,
-          budget: r.sanctioned_amount ?? r.estimated_cost ?? 0,
+          budget: r.budget ?? r.sanctioned_amount ?? r.estimated_cost ?? 0,
           zilla: r.zilla ?? '', taluk: r.taluk ?? '', gp: r.gram_panchayat ?? '',
-          village: r.village ?? '', sanctionOrderNo: r.scheme_name ?? '',
-          startDate: r.start_date ?? '', completionDate: r.target_date ?? undefined,
-          beneficiaries: 0, description: '',
+          village: r.village ?? '', sanctionOrderNo: r.funding_source ?? r.scheme_name ?? '',
+          startDate: r.start_date ?? '', completionDate: r.completion_date ?? r.target_date ?? undefined,
+          beneficiaries: r.beneficiaries ?? 0, description: r.description ?? '', fundingSource: r.funding_source ?? r.scheme_name ?? 'MPLADS',
           photos: (r.development_work_media ?? []).filter((m: any) => m.media_type === 'PHOTO').map((m: any) => ({
-            url: m.storage_path, caption: m.file_name ?? '',
+            url: m.resolved_url ?? devWorksApi.resolveMediaUrl(m.storage_path), caption: m.file_name ?? '',
           })),
         })));
       }

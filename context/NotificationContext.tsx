@@ -36,11 +36,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const dbUnread = dbNotifications.filter(n => !n.is_read).length;
   const unreadCount = localUnread + dbUnread;
 
+  // Clear DB notifications on sign-out so stale data doesn't persist between sessions
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setDbNotifications([]);
+        setNotifications([]);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Fetch DB notifications on mount and subscribe to new ones
   useEffect(() => {
-    const fetchAndSubscribe = async () => {
+    let channelRef: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    (async () => {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      if (!userData.user || cancelled) return;
 
       const { data } = await supabase
         .from('notifications')
@@ -49,10 +63,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (data) setDbNotifications(data as DbNotification[]);
+      if (!cancelled && data) setDbNotifications(data as DbNotification[]);
 
-      // Realtime subscription for new notifications
-      const channel = supabase
+      channelRef = supabase
         .channel('notif-ctx')
         .on('postgres_changes', {
           event: 'INSERT',
@@ -60,14 +73,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           table: 'notifications',
           filter: `recipient_id=eq.${userData.user.id}`,
         }, (payload) => {
-          setDbNotifications(prev => [payload.new as DbNotification, ...prev]);
+          if (!cancelled) setDbNotifications(prev => [payload.new as DbNotification, ...prev]);
         })
         .subscribe();
+    })();
 
-      return () => { supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      if (channelRef) supabase.removeChannel(channelRef);
     };
-
-    fetchAndSubscribe();
   }, []);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id' | 'isRead'>) => {

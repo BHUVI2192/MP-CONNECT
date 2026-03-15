@@ -30,7 +30,7 @@ export const MpladsMpPage: React.FC = () => {
   const totalReleased    = funds.reduce((s, f) => s + Number(f.released_cr), 0);
   const pendingReleased  = totalSanctioned - totalReleased;
 
-  const formatCr = (n: number) => `â‚¹${n.toFixed(1)} Cr`;
+  const formatCr = (n: number) => `${n.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Cr`;
   const sanctionPct = totalRecommended > 0 ? ((totalSanctioned / totalRecommended) * 100).toFixed(1) : '0';
 
   const formatDate = (d?: string) => {

@@ -56,12 +56,31 @@ type HistoryLog = {
   status: string;
 };
 
+type DbContactRow = {
+  contact_id: string;
+  full_name: string;
+  designation?: string | null;
+  organization?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  birthday?: string | null;
+  anniversary?: string | null;
+  location_village?: string | null;
+  location_taluk?: string | null;
+  village?: string | null;
+  taluk?: string | null;
+  zilla?: string | null;
+  state?: string | null;
+};
+
 function dbContactToGreeting(
-  c: any,
+  c: DbContactRow,
   event: 'Birthday' | 'Anniversary',
   greetedIds: Set<string>
 ): GContact {
-  const parts = [c.location_village, c.location_taluk, c.zilla, c.state].filter(Boolean);
+  const village = c.location_village ?? c.village ?? '';
+  const taluk = c.location_taluk ?? c.taluk ?? '';
+  const parts = [village, taluk, c.zilla, c.state].filter(Boolean);
   return {
     id: c.contact_id,
     name: c.full_name,
@@ -96,35 +115,66 @@ export const GreetingsPaPage: React.FC = () => {
 
   // Individual Greeting Modal State
   const [greetingChannel, setGreetingChannel] = useState<'whatsapp' | 'sms' | 'call' | 'email'>('whatsapp');
+  const [bulkChannel, setBulkChannel] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp');
   const [messageTemplate, setMessageTemplate] = useState('Wishing you a very happy birthday! May you have a wonderful year ahead filled with health and happiness.');
+
+  const fetchContactsForUpcoming = async (): Promise<DbContactRow[]> => {
+    const baseColumns = 'contact_id, full_name, designation, organization, mobile, email, birthday, anniversary, zilla, state';
+
+    // Newer schema path: location_village/location_taluk
+    const primary = await supabase
+      .from('contacts')
+      .select(`${baseColumns}, location_village, location_taluk`)
+      .is('deleted_at', null)
+      .limit(500);
+
+    if (!primary.error) {
+      return (primary.data ?? []) as DbContactRow[];
+    }
+
+    // Legacy schema fallback: village/taluk
+    const fallback = await supabase
+      .from('contacts')
+      .select(`${baseColumns}, village, taluk`)
+      .is('deleted_at', null)
+      .limit(500);
+
+    if (fallback.error) {
+      throw fallback.error;
+    }
+
+    return (fallback.data ?? []) as DbContactRow[];
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
     const currentYear = new Date().getFullYear();
     const today = `${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
-    const [{ data: bdContacts }, { data: anniContacts }, { data: logs }, { data: allCts }] = await Promise.all([
-      contactsApi.getTodaysBirthdays(),
-      contactsApi.getTodaysAnniversaries(),
-      supabase.from('greeting_logs').select('*').eq('greeted_year', currentYear).order('created_at', { ascending: false }).limit(100),
-      supabase.from('contacts').select('contact_id, full_name, designation, organization, mobile, email, birthday, anniversary, location_village, location_taluk, zilla, state').is('deleted_at', null).limit(500),
-    ]);
+    try {
+      const [{ data: bdContacts }, { data: anniContacts }, { data: logs }, allCts] = await Promise.all([
+        contactsApi.getTodaysBirthdays(),
+        contactsApi.getTodaysAnniversaries(),
+        supabase.from('greeting_logs').select('*').eq('greeted_year', currentYear).order('created_at', { ascending: false }).limit(100),
+        fetchContactsForUpcoming(),
+      ]);
 
-    const greetedIds = new Set<string>((logs ?? []).map((l: any) => l.contact_id).filter(Boolean));
+      const greetedIds = new Set<string>((logs ?? []).map((l: any) => l.contact_id).filter(Boolean));
 
-    setTodayBirthdays((bdContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Birthday', greetedIds)));
-    setTodayAnniversaries((anniContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Anniversary', greetedIds)));
-    setHistoryLogs((logs ?? []) as HistoryLog[]);
+      setTodayBirthdays((bdContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Birthday', greetedIds)));
+      setTodayAnniversaries((anniContacts ?? []).map((c: any) => dbContactToGreeting(c, 'Anniversary', greetedIds)));
+      setHistoryLogs((logs ?? []) as HistoryLog[]);
 
-    // Build upcoming contacts from all contacts (next 7 days)
-    const upcoming: GContact[] = [];
-    const today_mmdd = today;
-    for (const c of (allCts ?? [])) {
-      if (c.birthday) upcoming.push(dbContactToGreeting(c, 'Birthday', greetedIds));
-      if (c.anniversary) upcoming.push(dbContactToGreeting(c, 'Anniversary', greetedIds));
+      // Build upcoming contacts from all contacts (next 7 days)
+      const upcoming: GContact[] = [];
+      for (const c of (allCts ?? [])) {
+        if (c.birthday) upcoming.push(dbContactToGreeting(c, 'Birthday', greetedIds));
+        if (c.anniversary) upcoming.push(dbContactToGreeting(c, 'Anniversary', greetedIds));
+      }
+      setAllContacts(upcoming);
+    } finally {
+      setLoading(false);
     }
-    setAllContacts(upcoming);
-    setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -161,6 +211,7 @@ export const GreetingsPaPage: React.FC = () => {
   const handleSendBulk = async (_list: GContact[]) => {
     setBulkProgress({ current: 0, total: selectedContacts.length });
     const currentYear = new Date().getFullYear();
+    const channelLabel = bulkChannel === 'whatsapp' ? 'WhatsApp' : bulkChannel.toUpperCase();
     for (let i = 0; i < selectedContacts.length; i++) {
       const cid = selectedContacts[i];
       const contact = allGreetingContacts.find(c => c.id === cid);
@@ -169,7 +220,7 @@ export const GreetingsPaPage: React.FC = () => {
           contact_id: cid,
           contact_name: contact.name,
           occasion: contact.event,
-          channel: 'WhatsApp',
+          channel: channelLabel,
           status: 'Sent',
           greeted_year: currentYear,
         });
@@ -252,14 +303,18 @@ export const GreetingsPaPage: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-32">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Constituent Greetings</h2>
-          <p className="text-slate-500 font-medium">Manage protocol greetings for important constituents and leaders.</p>
-        </div>
-        <Button className="rounded-2xl shadow-lg shadow-indigo-100 px-8">
-          <Plus className="w-5 h-5 mr-2" /> Add Protocol Contact
+      <header className="portal-pa-hero-soft">
+        <div className="absolute inset-y-0 right-0 w-72 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18),transparent_58%)]" />
+        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-white/65 mb-3">PA Greetings</p>
+            <h2 className="text-4xl font-black text-white tracking-tighter">Constituent Greetings</h2>
+            <p className="text-white/80 font-medium mt-2">Manage protocol greetings for important constituents and leaders.</p>
+          </div>
+        <Button className="rounded-2xl shadow-lg shadow-slate-950/20 px-8 bg-white text-black hover:bg-slate-100">
+          <Plus className="w-5 h-5 mr-2 text-black" /> <span className="text-black">Add Protocol Contact</span>
         </Button>
+        </div>
       </header>
 
       {loading ? (
@@ -269,7 +324,7 @@ export const GreetingsPaPage: React.FC = () => {
       ) : (
       <>
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+      <div className="portal-pa-tabset w-fit">
         {[
           { id: 'birthdays', label: "Today's Birthdays", badge: pendingBirthdays },
           { id: 'anniversaries', label: "Today's Anniversaries", badge: pendingAnniversaries },
@@ -285,7 +340,7 @@ export const GreetingsPaPage: React.FC = () => {
           >
             {tab.label}
             {tab.badge !== undefined && tab.badge > 0 && (
-              <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] rounded-full">
+              <span className="flex items-center justify-center min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] rounded-full">
                 {tab.badge}
               </span>
             )}
@@ -392,7 +447,7 @@ export const GreetingsPaPage: React.FC = () => {
                   placeholder="Search greeting history..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-2xl focus:border-indigo-500 outline-none transition-all" 
+                  className="portal-pa-search pl-11 pr-4 py-3 text-sm" 
                 />
               </div>
               <div className="flex gap-2">
@@ -401,7 +456,7 @@ export const GreetingsPaPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+            <div className="portal-pa-shell overflow-hidden">
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-slate-400 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
                   <tr>
@@ -413,7 +468,12 @@ export const GreetingsPaPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {historyLogs.map((item) => (
+                  {historyLogs.filter(item =>
+                    !searchQuery ||
+                    item.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.occasion?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.channel?.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-8 py-5 text-sm font-bold text-slate-600">{item.created_at?.split('T')[0]}</td>
                       <td className="px-8 py-5 text-sm font-black text-slate-900">{item.contact_name}</td>
@@ -449,7 +509,7 @@ export const GreetingsPaPage: React.FC = () => {
             exit={{ y: 100 }}
             className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-6"
           >
-            <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-xl bg-slate-900/90">
+            <div className="rounded-3xl border border-white/10 bg-slate-900/90 p-4 text-white shadow-2xl flex items-center justify-between backdrop-blur-xl">
               <div className="flex items-center gap-4 pl-4">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-black">
                   {selectedContacts.length}
@@ -473,9 +533,9 @@ export const GreetingsPaPage: React.FC = () => {
       {/* Individual Greeting Modal */}
       <AnimatePresence>
         {showGreetingModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setShowGreetingModal(null)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="portal-pa-modal-backdrop" onClick={() => setShowGreetingModal(null)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="portal-pa-modal w-full max-w-xl">
               <div className="p-10">
                 <div className="flex justify-between items-start mb-8">
                   <div className="flex items-center gap-4">
@@ -554,9 +614,9 @@ export const GreetingsPaPage: React.FC = () => {
       {/* Bulk Greeting Modal */}
       <AnimatePresence>
         {showBulkModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setShowBulkModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="portal-pa-modal-backdrop" onClick={() => setShowBulkModal(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="portal-pa-modal w-full max-w-xl">
               <div className="p-10">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="text-2xl font-black text-slate-900 tracking-tighter">Bulk Greetings</h3>
@@ -572,13 +632,23 @@ export const GreetingsPaPage: React.FC = () => {
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Channel</h4>
                       <div className="grid grid-cols-3 gap-4">
-                        {['WhatsApp', 'SMS', 'Email'].map(channel => (
-                          <label key={channel} className="flex flex-col items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
-                            <input type="radio" name="bulkChannel" defaultChecked={channel === 'WhatsApp'} className="sr-only" />
+                        {[
+                          { id: 'whatsapp', label: 'WhatsApp' },
+                          { id: 'sms', label: 'SMS' },
+                          { id: 'email', label: 'Email' },
+                        ].map(channel => (
+                          <label key={channel.id} className="flex flex-col items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
+                            <input
+                              type="radio"
+                              name="bulkChannel"
+                              checked={bulkChannel === channel.id}
+                              onChange={() => setBulkChannel(channel.id as 'whatsapp' | 'sms' | 'email')}
+                              className="sr-only"
+                            />
                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm transition-colors">
-                              {channel === 'WhatsApp' ? <MessageSquare className="w-5 h-5" /> : channel === 'SMS' ? <Smartphone className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+                              {channel.id === 'whatsapp' ? <MessageSquare className="w-5 h-5" /> : channel.id === 'sms' ? <Smartphone className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
                             </div>
-                            <span className="text-xs font-black uppercase tracking-widest text-slate-500 group-hover:text-indigo-600">{channel}</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-slate-500 group-hover:text-indigo-600">{channel.label}</span>
                           </label>
                         ))}
                       </div>

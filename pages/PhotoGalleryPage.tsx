@@ -10,7 +10,8 @@ import {
   Download,
   Share2,
   Play,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react';
 import { photoGalleryApi } from '../hooks/usePhotoGallery';
 import { Album } from '../types';
@@ -51,6 +52,69 @@ export const PhotoGalleryPage: React.FC = () => {
   const [eventTypeFilter, setEventTypeFilter] = useState('All');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [initialPhotoIndex, setInitialPhotoIndex] = useState(0);
+  const [autoPlayLightbox, setAutoPlayLightbox] = useState(false);
+  const [isDownloadingAlbum, setIsDownloadingAlbum] = useState(false);
+
+  const sanitizeFileName = (name: string) =>
+    name.replace(/[^a-z0-9-_]+/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'album';
+
+  const inferExtension = (url: string, contentType?: string | null) => {
+    if (contentType?.includes('jpeg')) return 'jpg';
+    if (contentType?.includes('png')) return 'png';
+    if (contentType?.includes('webp')) return 'webp';
+    if (contentType?.includes('gif')) return 'gif';
+    const pathname = new URL(url).pathname;
+    const name = pathname.split('/').pop() || '';
+    const ext = name.includes('.') ? name.split('.').pop() : '';
+    return ext && ext.length <= 5 ? ext : 'jpg';
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(objectUrl);
+  };
+
+  const handleStartSlideshow = () => {
+    if (!selectedAlbum || selectedAlbum.photos.length === 0) return;
+    setInitialPhotoIndex(0);
+    setAutoPlayLightbox(true);
+    setLightboxOpen(true);
+  };
+
+  const handleDownloadAlbum = async () => {
+    if (!selectedAlbum || selectedAlbum.photos.length === 0 || isDownloadingAlbum) return;
+    setIsDownloadingAlbum(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const albumFolder = zip.folder(sanitizeFileName(selectedAlbum.name)) ?? zip;
+
+      for (let i = 0; i < selectedAlbum.photos.length; i += 1) {
+        const photo = selectedAlbum.photos[i];
+        const res = await fetch(photo.url, { mode: 'cors' });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const ext = inferExtension(photo.url, res.headers.get('content-type'));
+        const index = String(i + 1).padStart(2, '0');
+        const captionPart = sanitizeFileName(photo.caption || `photo_${index}`);
+        albumFolder.file(`${index}_${captionPart}.${ext}`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(zipBlob, `${sanitizeFileName(selectedAlbum.name)}.zip`);
+    } catch (error) {
+      console.error('Failed to download album:', error);
+      alert('Album download failed. Please try again.');
+    } finally {
+      setIsDownloadingAlbum(false);
+    }
+  };
 
   const publicAlbums = useMemo(() => albums.filter(a => a.isPublic), [albums]);
 
@@ -103,14 +167,22 @@ export const PhotoGalleryPage: React.FC = () => {
             </div>
             <div className="flex flex-col justify-end gap-4">
               <div className="flex gap-4">
-                <button className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
-                  <Download className="w-5 h-5" /> Download Album
+                <button
+                  onClick={handleDownloadAlbum}
+                  disabled={isDownloadingAlbum || selectedAlbum.photos.length === 0}
+                  className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDownloadingAlbum ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />} Download Album
                 </button>
                 <button className="flex-1 bg-white border-2 border-slate-200 text-slate-900 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:border-indigo-500 hover:text-indigo-600 transition-all">
                   <Share2 className="w-5 h-5" /> Share Album
                 </button>
               </div>
-              <button className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">
+              <button
+                onClick={handleStartSlideshow}
+                disabled={selectedAlbum.photos.length === 0}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 <Play className="w-5 h-5" /> Start Slideshow
               </button>
             </div>
@@ -126,6 +198,7 @@ export const PhotoGalleryPage: React.FC = () => {
                 className="aspect-square rounded-3xl overflow-hidden cursor-pointer group relative"
                 onClick={() => {
                   setInitialPhotoIndex(idx);
+                  setAutoPlayLightbox(false);
                   setLightboxOpen(true);
                 }}
               >
@@ -144,8 +217,12 @@ export const PhotoGalleryPage: React.FC = () => {
         <Lightbox 
           photos={selectedAlbum.photos}
           initialIndex={initialPhotoIndex}
+          autoPlay={autoPlayLightbox}
           isOpen={lightboxOpen}
-          onClose={() => setLightboxOpen(false)}
+          onClose={() => {
+            setLightboxOpen(false);
+            setAutoPlayLightbox(false);
+          }}
         />
       </div>
     );

@@ -54,15 +54,26 @@ export const planTodayApi = {
     },
 
     async uploadVoiceNote(eventId: string, audioBlob: Blob) {
-        const path = `voice-notes/${eventId}/${Date.now()}.mp3`
-        await supabase.storage.from('daybook-audio').upload(path, audioBlob)
+        const path = `voice-notes/${eventId}/${Date.now()}.webm`
 
-        await supabase.from('plan_today_events')
+        const { error: uploadError } = await supabase.storage
+            .from('daybook-audio')
+            .upload(path, audioBlob, { contentType: audioBlob.type || 'audio/webm' })
+
+        if (uploadError) {
+            throw new Error(uploadError.message)
+        }
+
+        const { error: updateError } = await supabase
+            .from('plan_today_events')
             .update({ voice_note_url: path })
             .eq('event_id', eventId)
 
-        // Invoke transcription function
-        await supabase.functions.invoke('transcribe-audio', {
+        if (updateError) {
+            throw new Error(updateError.message)
+        }
+
+        const { data, error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
             body: {
                 event_id: eventId,
                 storage_path: path,
@@ -70,7 +81,22 @@ export const planTodayApi = {
             }
         })
 
-        return path
+        if (transcribeError) {
+            throw new Error(transcribeError.message)
+        }
+
+        if (typeof data === 'string') {
+            return data
+        }
+
+        if (data && typeof data === 'object') {
+            const text = 'transcript' in data ? data.transcript : ('text' in data ? data.text : '')
+            if (typeof text === 'string') {
+                return text
+            }
+        }
+
+        return ''
     }
 }
 

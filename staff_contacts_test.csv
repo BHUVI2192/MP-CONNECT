@@ -1,0 +1,6 @@
+Full Name,Designation,Organization,Category,Mobile,Alternate Mobile,Email,WhatsApp,State,Zilla,Taluk,GP,Village,Full Address,DOB,Anniversary,Tags,Notes
+Anita Rao,Village Head,Gram Panchayat,VILLAGE_HEAD,9876500001,,anita.rao@example.com,9876500001,Karnataka,Shivamogga,Shikaripura,GP One,Village One,"Village One, Shivamogga",1985-04-10,2010-02-14,leader,test row 1
+Rakesh Kumar,Contractor,RK Infra,CONTRACTOR,9876500002,,rakesh.kumar@example.com,9876500002,Karnataka,Shivamogga,Shikaripura,GP Two,Village Two,"Village Two, Shivamogga",1982-06-11,2012-03-20,infra,test row 2
+Meena Devi,Official,Health Dept,OFFICIAL,9876500003,,meena.devi@example.com,9876500003,Karnataka,Shivamogga,Soraba,GP Three,Village Three,"Village Three, Shivamogga",1979-09-01,2008-11-30,health,test row 3
+Sanjay Patil,Party Worker,Local Unit,PARTY_WORKER,9876500004,,sanjay.patil@example.com,9876500004,Karnataka,Shivamogga,Bhadravati,GP Four,Village Four,"Village Four, Shivamogga",1990-01-19,2016-05-16,party,test row 4
+Lakshmi N,Voter,Resident,VOTER,9876500005,,lakshmi.n@example.com,9876500005,Karnataka,Shivamogga,Shivamogga,GP Five,Village Five,"Village Five, Shivamogga",1994-12-21,2019-08-08,voter,test row 5

@@ -15,6 +15,27 @@ serve(async (req) => {
     }
 
     try {
+        const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
+        const supabaseAnon = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || ''
+        );
+        const token = authHeader.replace('Bearer ', '').trim();
+        const { data: authData, error: authError } = await supabaseAnon.auth.getUser(token);
+        if (authError || !authData.user) {
+            return new Response(JSON.stringify({ error: 'Unauthorized caller' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
         const { eq_request_id } = await req.json();
 
         if (!eq_request_id) {
@@ -28,6 +49,20 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_URL')!,
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
+
+        const { data: callerProfile } = await supabase
+            .from('profiles')
+            .select('role, is_active')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+        const callerRole = String(callerProfile?.role ?? '').toUpperCase();
+        if (!callerProfile?.is_active || !['PA', 'MP', 'ADMIN'].includes(callerRole)) {
+            return new Response(JSON.stringify({ error: 'Forbidden: role not allowed for outbound EQ email' }), {
+                status: 403,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
 
         // 1. Fetch EQ request + division config (joined)
         const { data: eq, error: eqError } = await supabase

@@ -84,7 +84,7 @@ export const MpDashboard: React.FC = () => {
       <header className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-900">Constituency Overview</h2>
-          <p className="text-slate-500">Real-time data for Northeast Delhi Constituency</p>
+          <p className="text-slate-900">Real-time data for Northeast Delhi Constituency</p>
         </div>
         <div className="flex gap-3">
           <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
@@ -101,7 +101,7 @@ export const MpDashboard: React.FC = () => {
         <Card className="border-l-4 border-l-indigo-600" delay={0.1}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-500 text-sm font-medium">MPLADS Balance</p>
+              <p className="text-slate-900 text-sm font-medium">MPLADS Balance</p>
               <h4 className="text-2xl font-bold text-slate-900 mt-1">
                 {funds.length > 0 ? formatCr(mpladsBalance) : '—'}
               </h4>
@@ -114,9 +114,9 @@ export const MpDashboard: React.FC = () => {
         <Card className="border-l-4 border-l-slate-900" delay={0.2}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-500 text-sm font-medium">Next Tour</p>
+              <p className="text-slate-900 text-sm font-medium">Next Tour</p>
               <h4 className="text-2xl font-bold text-slate-900 mt-1">{nextTourDate}</h4>
-              <p className="text-xs text-slate-400 mt-1">{nextTourPlace}</p>
+              <p className="text-xs text-slate-700 mt-1">{nextTourPlace}</p>
             </div>
             <div className="bg-slate-100 p-2 rounded-lg text-slate-900">
               <MapPin className="w-5 h-5" />
@@ -126,7 +126,7 @@ export const MpDashboard: React.FC = () => {
         <Card className="border-l-4 border-l-orange-500" delay={0.3}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-500 text-sm font-medium">Pending Complaints</p>
+              <p className="text-slate-900 text-sm font-medium">Pending Complaints</p>
               <h4 className="text-2xl font-bold text-slate-900 mt-1">{pendingComplaints}</h4>
             </div>
             <div className="bg-orange-50 p-2 rounded-lg text-orange-600">
@@ -137,7 +137,7 @@ export const MpDashboard: React.FC = () => {
         <Card className="border-l-4 border-l-green-500" delay={0.4}>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-500 text-sm font-medium">Resolved (Monthly)</p>
+              <p className="text-slate-900 text-sm font-medium">Resolved (Monthly)</p>
               <h4 className="text-2xl font-bold text-slate-900 mt-1">{resolvedPct}%</h4>
             </div>
             <div className="bg-green-50 p-2 rounded-lg text-green-600">
@@ -191,7 +191,7 @@ export const MpDashboard: React.FC = () => {
               <span className="text-3xl font-extrabold text-slate-900">
                 {funds.length > 0 ? formatCr(totalSanctioned) : '—'}
               </span>
-              <span className="text-sm text-slate-400 font-medium uppercase tracking-widest">Sanctioned</span>
+              <span className="text-sm text-slate-700 font-medium uppercase tracking-widest">Sanctioned</span>
             </div>
           </div>
         </Card>
@@ -200,7 +200,7 @@ export const MpDashboard: React.FC = () => {
       {/* Upcoming Tours */}
       <Card title="Upcoming Tours" delay={0.7}>
         {upcomingTours.length === 0 ? (
-          <p className="text-slate-400 text-sm mt-4">No upcoming tours scheduled.</p>
+          <p className="text-slate-700 text-sm mt-4">No upcoming tours scheduled.</p>
         ) : (
           <div className="space-y-4">
             {upcomingTours.map((tour) => (
@@ -211,7 +211,7 @@ export const MpDashboard: React.FC = () => {
                   </div>
                   <div>
                     <h5 className="font-bold text-slate-900">{tour.location.name}</h5>
-                    <p className="text-sm text-slate-500">{tour.type} • {tour.startTime}</p>
+                    <p className="text-sm text-slate-900">{tour.type} • {tour.startTime}</p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${

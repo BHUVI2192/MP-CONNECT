@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Letter, Complaint, Project, TourProgram, PlanTodayEvent, Contact } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -51,27 +51,95 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [events, setEvents] = useState<PlanTodayEvent[]>([]);
     const [contacts, setContacts] = useState<Contact[]>([]);
 
-    // Fetch complaints from Supabase on mount
-    useEffect(() => {
-        supabase.from('complaints').select('*').order('created_at', { ascending: false })
-            .then(({ data }) => {
-                if (data && data.length > 0) {
-                    setComplaints(data.map((r: any) => ({
-                        id: r.id,
-                        citizenName: r.citizen_name,
-                        category: r.category,
-                        location: r.location,
-                        description: r.description,
-                        status: r.status,
-                        priority: r.priority,
-                        staffNotes: r.staff_notes ?? undefined,
-                        paInstructions: r.pa_instructions ?? undefined,
-                        assignedTo: r.assigned_to ?? undefined,
-                        createdAt: r.created_at?.split('T')[0] ?? '',
-                    })));
-                }
-            });
+    const mapPlanTodayRow = useCallback((r: any): PlanTodayEvent => {
+        const statusMap: Record<string, PlanTodayEvent['status']> = {
+            SCHEDULED: 'Scheduled', COMPLETED: 'Completed',
+            CANCELLED: 'Cancelled', VISITED: 'Visited', IN_PROGRESS: 'In_Progress',
+        };
+
+        return {
+            id: r.event_id,
+            title: r.title ?? r.event_title ?? 'Untitled',
+            type: (r.type ?? 'Visit') as PlanTodayEvent['type'],
+            date: r.scheduled_date ?? r.event_date ?? '',
+            startTime: r.scheduled_time ?? r.start_time ?? '',
+            duration: r.duration ?? '1h',
+            location: { name: r.location ?? '', address: '' },
+            attendees: [],
+            purpose: r.description ?? '',
+            status: statusMap[r.status ?? 'SCHEDULED'] ?? 'Scheduled',
+            documentation: {
+                textNotes: r.internal_notes ?? undefined,
+                summary: r.final_notes ?? undefined,
+                hasVoiceNote: Boolean(r.voice_note_url),
+            },
+            createdAt: r.created_at ?? '',
+            createdBy: r.pa_id ?? '',
+        };
     }, []);
+
+    const mapComplaintRow = useCallback((r: any): Complaint => ({
+        id: r.id,
+        citizenName: r.citizen_name,
+        category: r.category,
+        location: r.location,
+        description: r.description,
+        status: r.status,
+        priority: r.priority,
+        staffNotes: r.staff_notes ?? undefined,
+        paInstructions: r.pa_instructions ?? undefined,
+        assignedTo: r.assigned_to ?? undefined,
+        createdAt: r.created_at?.split('T')[0] ?? '',
+    }), []);
+
+    const mapLetterRow = useCallback((r: any): Letter => ({
+        id: r.id,
+        type: r.type,
+        department: r.department,
+        title: r.title,
+        content: r.content ?? '',
+        status: r.status,
+        version: r.version ?? 1,
+        tags: r.tags ?? [],
+        attachmentUrl: r.attachment_url ?? undefined,
+        createdAt: r.created_at?.split('T')[0] ?? '',
+        updatedAt: r.updated_at?.split('T')[0] ?? '',
+        senderId: r.sender_id ?? '',
+    }), []);
+
+    const fetchComplaints = useCallback(async () => {
+        const { data, error } = await supabase
+            .from('complaints')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('[DB] fetchComplaints:', error.message, error);
+            return;
+        }
+
+        setComplaints((data ?? []).map(mapComplaintRow));
+    }, [mapComplaintRow]);
+
+    // Fetch complaints from Supabase on mount and keep them in sync.
+    useEffect(() => {
+        void fetchComplaints();
+
+        const channel = supabase
+            .channel('complaints-mock-data-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'complaints' },
+                () => {
+                    void fetchComplaints();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [fetchComplaints]);
 
     // Fetch tours from Supabase on mount
     useEffect(() => {
@@ -97,28 +165,39 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
     }, []);
 
-    // Fetch letters from Supabase on mount
+    const fetchLetters = useCallback(async () => {
+        const { data, error } = await supabase
+            .from('letters')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('[DB] fetchLetters:', error.message, error);
+            return;
+        }
+
+        setLetters((data ?? []).map(mapLetterRow));
+    }, [mapLetterRow]);
+
+    // Fetch letters from Supabase on mount and keep them in sync.
     useEffect(() => {
-        supabase.from('letters').select('*').order('created_at', { ascending: false })
-            .then(({ data }) => {
-                if (data && data.length > 0) {
-                    setLetters(data.map((r: any) => ({
-                        id: r.id,
-                        type: r.type,
-                        department: r.department,
-                        title: r.title,
-                        content: r.content ?? '',
-                        status: r.status,
-                        version: r.version ?? 1,
-                        tags: r.tags ?? [],
-                        attachmentUrl: r.attachment_url ?? undefined,
-                        createdAt: r.created_at?.split('T')[0] ?? '',
-                        updatedAt: r.updated_at?.split('T')[0] ?? '',
-                        senderId: r.sender_id ?? '',
-                    })));
+        void fetchLetters();
+
+        const channel = supabase
+            .channel('letters-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'letters' },
+                () => {
+                    void fetchLetters();
                 }
-            });
-    }, []);
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [fetchLetters]);
 
     // Fetch contacts from Supabase on mount
     useEffect(() => {
@@ -145,32 +224,40 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
     }, []);
 
-    // Fetch plan_today_events from Supabase on mount
+    const fetchEvents = useCallback(async () => {
+        const { data, error } = await supabase
+            .from('plan_today_events')
+            .select('*')
+            .order('scheduled_date', { ascending: true })
+            .order('scheduled_time', { ascending: true });
+
+        if (error) {
+            console.error('[DB] fetchEvents:', error.message, error);
+            return;
+        }
+
+        setEvents((data ?? []).map(mapPlanTodayRow));
+    }, [mapPlanTodayRow]);
+
+    // Fetch plan_today_events from Supabase on mount and keep them in sync.
     useEffect(() => {
-        supabase.from('plan_today_events').select('*').order('scheduled_time', { ascending: true })
-            .then(({ data }) => {
-                if (data && data.length > 0) {
-                    const statusMap: Record<string, PlanTodayEvent['status']> = {
-                        SCHEDULED: 'Scheduled', COMPLETED: 'Completed',
-                        CANCELLED: 'Cancelled', VISITED: 'Visited', IN_PROGRESS: 'Scheduled',
-                    };
-                    setEvents(data.map((r: any) => ({
-                        id: r.event_id,
-                        title: r.title ?? r.event_title ?? 'Untitled',
-                        type: (r.type ?? 'Visit') as PlanTodayEvent['type'],
-                        date: r.scheduled_date ?? r.event_date ?? '',
-                        startTime: r.scheduled_time ?? r.start_time ?? '',
-                        duration: r.duration ?? '1h',
-                        location: { name: r.location ?? '', address: '' },
-                        attendees: [],
-                        purpose: r.description ?? '',
-                        status: statusMap[r.status ?? 'SCHEDULED'] ?? 'Scheduled',
-                        createdAt: r.created_at ?? '',
-                        createdBy: r.pa_id ?? '',
-                    })));
+        void fetchEvents();
+
+        const channel = supabase
+            .channel('plan-today-events-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'plan_today_events' },
+                () => {
+                    void fetchEvents();
                 }
-            });
-    }, []);
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [fetchEvents]);
 
     // Fetch development_works from Supabase on mount
     useEffect(() => {
@@ -203,6 +290,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
     // ── Complaints actions ────────────────────────────────────
     const addComplaint = async (complaint: Complaint) => {
         setComplaints(prev => [complaint, ...prev]); // optimistic
+        const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase.from('complaints').insert({
             citizen_name: complaint.citizenName,
             category: complaint.category,
@@ -210,6 +298,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             description: complaint.description,
             status: complaint.status ?? 'New',
             priority: complaint.priority ?? 'Medium',
+            submitted_by: user?.id ?? null,
         }).select().single();
         if (error) { console.error('[DB] addComplaint:', error.message, error); return; }
         if (data?.id) setComplaints(prev => prev.map(c => c.id === complaint.id ? { ...c, id: data.id } : c));
@@ -227,6 +316,7 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
     // ── Letters actions ───────────────────────────────────────
     const addLetter = async (letter: Letter) => {
         setLetters(prev => [letter, ...prev]); // optimistic
+        const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase.from('letters').insert({
             type: letter.type,
             department: letter.department,
@@ -235,13 +325,15 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             status: letter.status ?? 'Pending',
             version: letter.version ?? 1,
             tags: letter.tags ?? [],
+            sender_id: letter.senderId || user?.id || null,
         }).select().single();
         if (error) { console.error('[DB] addLetter:', error.message, error); return; }
         if (data?.id) setLetters(prev => prev.map(l => l.id === letter.id ? { ...l, id: data.id } : l));
     };
 
     const updateLetterStatus = async (id: string, status: Letter['status']) => {
-        setLetters(prev => prev.map(l => l.id === id ? { ...l, status } : l)); // optimistic
+        const updatedAt = new Date().toISOString().split('T')[0];
+        setLetters(prev => prev.map(l => l.id === id ? { ...l, status, updatedAt } : l)); // optimistic
         const { error } = await supabase.from('letters').update({ status }).eq('id', id);
         if (error) console.error('[DB] updateLetterStatus:', error.message, error);
     };
@@ -289,6 +381,8 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase.from('plan_today_events').insert({
             event_title: event.title,   // original NOT NULL column
+            event_date: event.date,
+            start_time: event.startTime,
             title: event.title,
             type: event.type,
             scheduled_date: event.date,
@@ -298,6 +392,8 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
             description: event.purpose,
             status: 'SCHEDULED',
             pa_id: user?.id ?? null,
+            internal_notes: event.documentation?.textNotes ?? null,
+            final_notes: event.documentation?.summary ?? null,
         }).select().single();
         if (error) { console.error('[DB] addEvent:', error.message, error); return; }
         // Swap temp ID for real server UUID
@@ -308,15 +404,26 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
         setEvents(prev => prev.map(e => e.id === event.id ? event : e)); // optimistic
         const statusMap: Record<string, string> = {
             Scheduled: 'SCHEDULED', Completed: 'COMPLETED',
-            Cancelled: 'CANCELLED', Visited: 'VISITED',
+            Cancelled: 'CANCELLED', Visited: 'VISITED', In_Progress: 'IN_PROGRESS',
         };
         // Skip DB update if the ID is a temp ID (not a real UUID) — table not ready yet
         if (/^e-\d+$/.test(event.id)) return;
         const { error } = await supabase.from('plan_today_events').update({
+            event_title: event.title,
+            event_date: event.date,
+            start_time: event.startTime,
             title: event.title,
+            type: event.type,
+            duration: event.duration,
+            location: event.location.name,
+            description: event.purpose,
             scheduled_date: event.date,
             scheduled_time: event.startTime,
             status: statusMap[event.status] ?? 'SCHEDULED',
+            internal_notes: event.documentation?.textNotes ?? null,
+            final_notes: event.documentation?.summary ?? null,
+            voice_note_url: event.documentation?.hasVoiceNote ? event.documentation?.attachments?.[0]?.url ?? null : null,
+            day_finalized: event.status === 'Visited' || event.status === 'Completed' || event.status === 'Cancelled',
         }).eq('event_id', event.id);
         if (error) console.error('[DB] updateEvent:', error.message, error);
     };

@@ -136,7 +136,7 @@ export const StaffDashboard: React.FC = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Staff Operations</h2>
-          <p className="text-slate-500 font-medium">Consolidated command center for constituency ops.</p>
+          <p className="text-slate-900 font-medium">Consolidated command center for constituency ops.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="rounded-xl" onClick={() => navigate('/staff/contacts')}><Settings className="w-4 h-4 mr-2" /> Master Data</Button>
@@ -166,7 +166,7 @@ export const StaffDashboard: React.FC = () => {
               <action.icon className="w-6 h-6" />
             </div>
             <h4 className="font-black text-slate-900 tracking-tight text-lg">{action.label}</h4>
-            <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest">{action.sub}</p>
+            <p className="text-[10px] text-slate-700 mt-1 uppercase font-black tracking-widest">{action.sub}</p>
             <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
               <ArrowUpRight className="w-5 h-5 text-indigo-600" />
             </div>
@@ -204,7 +204,7 @@ export const StaffDashboard: React.FC = () => {
             <div className="space-y-6 mt-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Complaints Resolved</p>
+                  <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">Complaints Resolved</p>
                   <p className="text-2xl font-black text-slate-900 mt-1">{resolvedComplaintsPct}%</p>
                 </div>
                 <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
@@ -213,9 +213,9 @@ export const StaffDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Media Coverage</p>
+                  <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">Media Coverage</p>
                   <p className="text-2xl font-black text-slate-900 mt-1">{activeWorksCount + upcomingToursCount}</p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Active works + tours</p>
+                  <p className="text-[10px] font-bold text-slate-700 mt-1 uppercase tracking-widest">Active works + tours</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                   <Activity className="w-6 h-6" />
@@ -223,7 +223,7 @@ export const StaffDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pending Letters</p>
+                  <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">Pending Letters</p>
                   <p className="text-2xl font-black text-slate-900 mt-1">{pendingLettersCount}</p>
                 </div>
                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
@@ -244,7 +244,7 @@ export const StaffDashboard: React.FC = () => {
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${task.priority === 'High' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                       }`}>{task.priority} Priority</span>
-                    <span className="text-[10px] font-bold text-slate-400">Due {task.due}</span>
+                    <span className="text-[10px] font-bold text-slate-700">Due {task.due}</span>
                   </div>
                   <p className="text-sm font-black text-slate-900">{task.task}</p>
                   <button className="text-[10px] font-black text-indigo-600 uppercase mt-3 hover:underline" onClick={() => navigate(task.path)}>Open Task</button>

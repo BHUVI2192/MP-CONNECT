@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -60,11 +60,15 @@ function friendlyError(message: string): string {
 }
 
 async function buildUserFromSession(session: Session): Promise<User | null> {
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, role, constituency')
+    .select('id, full_name, role')
     .eq('id', session.user.id)
-    .single();
+    .maybeSingle();
+
+  if (profileError) {
+    console.warn('[auth] profile lookup failed, falling back to auth metadata:', profileError.message);
+  }
 
   // Profile may not exist yet (trigger delay) — build a minimal one from session metadata
   const meta = session.user.user_metadata;
@@ -83,34 +87,84 @@ async function buildUserFromSession(session: Session): Promise<User | null> {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isMountedRef = useRef(true);
+  const sessionLoadIdRef = useRef(0);
+
+  const resolveSessionUser = useCallback(async (session: Session) => {
+    const loadId = ++sessionLoadIdRef.current;
+    const appUser = await buildUserFromSession(session);
+    if (!isMountedRef.current || loadId !== sessionLoadIdRef.current) {
+      return null;
+    }
+    setUser(appUser);
+    return appUser;
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const appUser = await buildUserFromSession(session);
-        setUser(appUser);
+    isMountedRef.current = true;
+
+    const bootstrapSession = async () => {
+      try {
+        setIsLoading(true);
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('[auth] getSession failed during bootstrap:', error.message);
+        }
+        if (!isMountedRef.current) return;
+
+        if (session) {
+          await resolveSessionUser(session);
+        } else {
+          setUser(null);
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
+    };
+
+    void bootstrapSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      window.setTimeout(() => {
+        if (!isMountedRef.current) return;
+
+        if (event === 'SIGNED_OUT' || !session) {
+          sessionLoadIdRef.current += 1;
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
+        setIsLoading(true);
+        void resolveSessionUser(session)
+          .catch((error) => {
+            console.warn('[auth] session resolution failed:', error instanceof Error ? error.message : String(error));
+            if (isMountedRef.current) {
+              setUser(null);
+            }
+          })
+          .finally(() => {
+            if (isMountedRef.current) {
+              setIsLoading(false);
+            }
+          });
+      }, 0);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const appUser = await buildUserFromSession(session);
-        setUser(appUser);
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMountedRef.current = false;
+      subscription.unsubscribe();
+    };
+  }, [resolveSessionUser]);
 
   const login = useCallback(async (email: string, password: string): Promise<{ error?: string; role?: UserRole }> => {
     try {
       const { data, error } = await withTimeout(supabase.auth.signInWithPassword({ email, password }));
       if (error) return { error: friendlyError(error.message) };
       if (data.session) {
-        const appUser = await buildUserFromSession(data.session);
+        const appUser = await resolveSessionUser(data.session);
         if (appUser) return { role: appUser.role };
       }
       return {};
@@ -173,7 +227,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    console.warn('[auth] useAuth called before AuthProvider was ready; returning safe fallback context.');
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      login: async () => ({ error: 'Auth provider not ready yet.' }),
+      signup: async () => ({ error: 'Auth provider not ready yet.' }),
+      logout: async () => { },
+    };
   }
   return context;
 };

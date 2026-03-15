@@ -43,7 +43,7 @@ export const StaffLettersPage: React.FC = () => {
             tags: newDraft.tags.split(',').map(t => t.trim()),
             createdAt: new Date().toISOString().split('T')[0],
             updatedAt: new Date().toISOString().split('T')[0],
-            senderId: 'STAFF-001'
+            senderId: ''
         };
 
         addLetter(draft);

@@ -56,16 +56,31 @@ export const StaffEqRequestPage: React.FC = () => {
 
   const [selectedTrain, setSelectedTrain] = useState<Train | null>(null);
   const [trainError, setTrainError] = useState('');
+  const [isTrainLookupLoading, setIsTrainLookupLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedRequestId, setSubmittedRequestId] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handleTrainNumberChange = async (val: string) => {
-    setFormData(prev => ({ ...prev, trainNumber: val }));
-    if (val.length === 5) {
-      const { data, error } = await railwayEQApi.lookupTrain(val);
-      if (data && !error) {
+    const normalized = val.replace(/\D/g, '').slice(0, 5);
+    setFormData(prev => ({ ...prev, trainNumber: normalized }));
+
+    if (normalized.length !== 5) {
+      setSelectedTrain(null);
+      setTrainError('');
+      setIsTrainLookupLoading(false);
+      return;
+    }
+
+    setIsTrainLookupLoading(true);
+    try {
+      const { data, error } = await railwayEQApi.lookupTrain(normalized);
+      if (error) throw error;
+
+      if (data) {
         const train: Train = {
           number: data.train_number,
           name: data.train_name,
@@ -80,15 +95,19 @@ export const StaffEqRequestPage: React.FC = () => {
         setSelectedTrain(null);
         setTrainError('Train not found. Please check the number.');
       }
-    } else {
+    } catch (err) {
       setSelectedTrain(null);
-      setTrainError('');
+      const message = err instanceof Error ? err.message : 'Train lookup failed.';
+      setTrainError(message);
+    } finally {
+      setIsTrainLookupLoading(false);
     }
   };
 
   const handleSubmit = async () => {
+    setSubmitError('');
     try {
-      await railwayEQApi.submitRequest({
+      const eq = await railwayEQApi.submitRequest({
         applicant_name: formData.applicantName,
         mobile: formData.mobile,
         email: formData.email || null,
@@ -104,10 +123,13 @@ export const StaffEqRequestPage: React.FC = () => {
         pnr_number: formData.pnrNumber || null,
         division: selectedTrain?.division ?? null,
       });
+      setSubmittedRequestId(eq.id ?? eq.eq_request_id ?? eq.request_id ?? '');
+      setIsSubmitted(true);
     } catch (err) {
       console.error('[EQ] submitRequest failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to submit request.';
+      setSubmitError(message);
     }
-    setIsSubmitted(true);
   };
 
   if (isSubmitted) {
@@ -122,7 +144,7 @@ export const StaffEqRequestPage: React.FC = () => {
         </motion.div>
         <div className="space-y-4">
           <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Request Submitted</h2>
-          <p className="text-slate-500 font-medium">Request ID: <span className="text-indigo-600 font-bold">EQ-2024-102</span>. Awaiting PA approval.</p>
+          <p className="text-slate-500 font-medium">Request ID: <span className="text-indigo-600 font-bold">{submittedRequestId || 'Generated after submit'}</span>. Awaiting PA approval.</p>
         </div>
         <Card className="p-8 border-none shadow-xl bg-white text-left space-y-6">
           <div className="flex items-center justify-between">
@@ -146,7 +168,16 @@ export const StaffEqRequestPage: React.FC = () => {
             </div>
           </div>
         </Card>
-        <Button size="lg" className="rounded-2xl px-12" onClick={() => setIsSubmitted(false)}>Create New Request</Button>
+        <Button
+          size="lg"
+          className="rounded-2xl px-12"
+          onClick={() => {
+            setIsSubmitted(false);
+            setSubmittedRequestId('');
+          }}
+        >
+          Create New Request
+        </Button>
       </div>
     );
   }
@@ -251,7 +282,13 @@ export const StaffEqRequestPage: React.FC = () => {
                       value={formData.trainNumber}
                       onChange={e => handleTrainNumberChange(e.target.value)}
                     />
-                    <Search className="w-5 h-5 absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    {isTrainLookupLoading ? (
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                        <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : (
+                      <Search className="w-5 h-5 absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    )}
                   </div>
                   {trainError && <p className="text-xs text-red-500 font-bold flex items-center gap-1 mt-1"><AlertCircle className="w-3 h-3" /> {trainError}</p>}
                 </div>
@@ -460,6 +497,9 @@ export const StaffEqRequestPage: React.FC = () => {
                     Submit for PA Approval
                   </Button>
                 </div>
+                {submitError && (
+                  <p className="text-xs text-red-500 font-bold flex items-center gap-1 mt-3"><AlertCircle className="w-3 h-3" /> {submitError}</p>
+                )}
               </div>
             )}
           </motion.div>

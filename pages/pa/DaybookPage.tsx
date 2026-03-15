@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -22,6 +22,7 @@ import { Card } from '../../components/UI/Card';
 import { PlanTodayEvent, PlanTodayAttendee, NotificationType } from '../../types';
 import { useMockData } from '../../context/MockDataContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { planTodayApi } from '../../hooks/usePlanToday';
 
 type DaybookStatus = PlanTodayEvent['status'];
 
@@ -56,6 +57,9 @@ const formatTime = (time: string): string => {
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
 };
 
+const toLocalDateString = (d: Date = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export const DaybookPage: React.FC = () => {
   const { events, updateEvent } = useMockData();
   const { addNotification } = useNotifications();
@@ -65,7 +69,7 @@ export const DaybookPage: React.FC = () => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateString();
 
   const todayEvents = useMemo(() =>
     events
@@ -89,44 +93,65 @@ export const DaybookPage: React.FC = () => {
   );
 
   const totalCount = todayEvents.length;
-  const progressPercentage = (completedCount / totalCount) * 100;
+  const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleUpdateDetails = (event: PlanTodayEvent, textNotes: string) => {
-    const updated: PlanTodayEvent = {
-      ...event,
-      documentation: { ...event.documentation, textNotes },
-    };
-    updateEvent(updated);
-    addNotification({
-      eventId: event.id,
-      eventName: event.title,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'UPDATE',
-      notes: textNotes,
-    });
-    showToast(`Staff notified of update to ${event.title}`);
+  const handleUpdateDetails = async (event: PlanTodayEvent, textNotes: string) => {
+    try {
+      const updated: PlanTodayEvent = {
+        ...event,
+        documentation: { ...event.documentation, textNotes },
+      };
+      updateEvent(updated);
+      addNotification({
+        eventId: event.id,
+        eventName: event.title,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'UPDATE',
+        notes: textNotes,
+      });
+      showToast(`Staff notified of update to ${event.title}`);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save update.';
+      showToast(message, 'error');
+      return false;
+    }
   };
 
-  const handleMarkStatus = (event: PlanTodayEvent, status: 'Visited' | 'Cancelled', notes: string) => {
-    const updated: PlanTodayEvent = {
-      ...event,
-      status,
-      documentation: { ...event.documentation, summary: notes },
-    };
-    updateEvent(updated);
-    addNotification({
-      eventId: event.id,
-      eventName: event.title,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: status === 'Visited' ? 'VISITED' : 'CANCELLED',
-      notes,
-    });
-    showToast(`Staff notified — ${event.title} marked as ${status}`);
+  const handleMarkStatus = async (event: PlanTodayEvent, status: 'Visited' | 'Cancelled', notes: string) => {
+    try {
+      const attended = status === 'Visited';
+      const { error } = await planTodayApi.markFinalStatus(event.id, attended, notes);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const updated: PlanTodayEvent = {
+        ...event,
+        status,
+        documentation: { ...event.documentation, summary: notes },
+      };
+      updateEvent(updated);
+
+      addNotification({
+        eventId: event.id,
+        eventName: event.title,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: status === 'Visited' ? 'VISITED' : 'CANCELLED',
+        notes,
+      });
+      showToast(`Staff notified — ${event.title} marked as ${status}`);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update status.';
+      showToast(message, 'error');
+      return false;
+    }
   };
 
   return (
@@ -150,13 +175,19 @@ export const DaybookPage: React.FC = () => {
 
       {/* Header & Tabs */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Daybook</h1>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="portal-pa-hero mb-6">
+          <div className="absolute inset-y-0 right-0 w-72 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.16),transparent_60%)]" />
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-700 mb-3">PA Daybook</p>
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Daybook</h1>
+              <p className="text-slate-700 font-medium mt-2">Track live events, field notes, and completed visits.</p>
+            </div>
+            <div className="portal-pa-tabset">
             <button 
               onClick={() => setActiveTab('today')}
               className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'today' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'today' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-black border border-slate-200 hover:bg-slate-100'
               }`}
             >
               Today
@@ -164,19 +195,20 @@ export const DaybookPage: React.FC = () => {
             <button 
               onClick={() => setActiveTab('past')}
               className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'past' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'past' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-black border border-slate-200 hover:bg-slate-100'
               }`}
             >
               Past Days
             </button>
           </div>
         </div>
+        </div>
 
         {/* Progress Indicator (today tab only) */}
         {activeTab === 'today' && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
+          <div className="portal-pa-shell p-6 rounded-2xl mb-8">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-slate-700">{completedCount} of {totalCount} events completed today</span>
+              <span className="text-sm font-bold text-slate-900">{completedCount} of {totalCount} events completed today</span>
               <span className="text-sm font-black text-indigo-600">{Math.round(progressPercentage)}%</span>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -193,10 +225,10 @@ export const DaybookPage: React.FC = () => {
         {activeTab === 'today' && (
           <div className="space-y-4">
             {todayEvents.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+              <div className="portal-pa-shell text-center py-16 rounded-2xl">
                 <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-900 mb-1">No events planned for today</h3>
-                <p className="text-slate-500 text-sm">Use the Plan Today page to add events to the schedule.</p>
+                <p className="text-slate-700 text-sm">Use the Plan Today page to add events to the schedule.</p>
               </div>
             ) : (
               todayEvents.map((event) => (
@@ -221,7 +253,7 @@ export const DaybookPage: React.FC = () => {
         {activeTab === 'past' && (
           <div className="space-y-6">
             {Object.keys(pastEventsByDate).length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+              <div className="portal-pa-shell text-center py-16 rounded-2xl">
                 <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-900 mb-1">No past events</h3>
                 <p className="text-slate-500 text-sm">Events from previous days will appear here.</p>
@@ -229,7 +261,7 @@ export const DaybookPage: React.FC = () => {
             ) : (
               Object.entries(pastEventsByDate).map(([date, dateEvents]) => (
                 <div key={date}>
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
                     {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                   </h3>
                   <div className="space-y-3">
@@ -250,9 +282,11 @@ export const DaybookPage: React.FC = () => {
           <UpdateDetailsModal 
             event={selectedEvent} 
             onClose={() => setIsUpdateModalOpen(false)}
-            onSave={(textNotes) => {
-              handleUpdateDetails(selectedEvent, textNotes);
-              setIsUpdateModalOpen(false);
+            onSave={async (textNotes) => {
+              const success = await handleUpdateDetails(selectedEvent, textNotes);
+              if (success) {
+                setIsUpdateModalOpen(false);
+              }
             }}
           />
         )}
@@ -260,9 +294,11 @@ export const DaybookPage: React.FC = () => {
           <MarkStatusModal 
             event={selectedEvent} 
             onClose={() => setIsStatusModalOpen(false)}
-            onConfirm={(status, notes) => {
-              handleMarkStatus(selectedEvent, status, notes);
-              setIsStatusModalOpen(false);
+            onConfirm={async (status, notes) => {
+              const success = await handleMarkStatus(selectedEvent, status, notes);
+              if (success) {
+                setIsStatusModalOpen(false);
+              }
             }}
           />
         )}
@@ -287,13 +323,13 @@ const EventCard: React.FC<{
             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_BADGES[event.status]}`}>
               {STATUS_LABELS[event.status]}
             </span>
-            <div className="flex items-center gap-1 text-xs text-slate-400">
+            <div className="flex items-center gap-1 text-xs text-slate-700">
               <Clock className="w-3 h-3" />
               {formatTime(event.startTime)}
             </div>
           </div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">{event.title}</h3>
-          <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+          <div className="flex items-center gap-2 text-sm text-slate-700 mb-4">
             <MapPin className="w-4 h-4 text-slate-400" />
             {event.location?.name || '—'}
           </div>
@@ -307,7 +343,7 @@ const EventCard: React.FC<{
                 </div>
               ))}
               {(event.attendees || []).length > 3 && (
-                <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-400">
+                <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-700">
                   +{(event.attendees || []).length - 3}
                 </div>
               )}
@@ -335,12 +371,12 @@ const EventCard: React.FC<{
             </>
           ) : (
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Summary</p>
+              <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-1">Final Summary</p>
               <p className="text-xs text-slate-600 line-clamp-2 italic">
                 {event.documentation?.summary || (event.status === 'Cancelled' ? 'Event cancelled.' : 'Completed as planned.')}
               </p>
               {event.documentation?.textNotes && (
-                <p className="text-xs text-slate-500 mt-1 line-clamp-1 italic">"{event.documentation.textNotes}"</p>
+                <p className="text-xs text-slate-700 mt-1 line-clamp-1 italic">"{event.documentation.textNotes}"</p>
               )}
             </div>
           )}
@@ -353,32 +389,114 @@ const EventCard: React.FC<{
 const UpdateDetailsModal: React.FC<{ 
   event: PlanTodayEvent; 
   onClose: () => void; 
-  onSave: (textNotes: string) => void;
+  onSave: (textNotes: string) => Promise<void>;
 }> = ({ event, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text');
   const [notes, setNotes] = useState(event.documentation?.textNotes || '');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingComplete, setRecordingComplete] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState('');
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setRecordingComplete(false);
-    // Simulate recording for 3 seconds
-    setTimeout(() => {
-      setIsRecording(false);
-      setRecordingComplete(true);
-    }, 3000);
+  useEffect(() => {
+    return () => {
+      if (audioPreviewUrl) {
+        URL.revokeObjectURL(audioPreviewUrl);
+      }
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+    };
+  }, [audioPreviewUrl]);
+
+  const cleanupAudioPreview = () => {
+    if (audioPreviewUrl) {
+      URL.revokeObjectURL(audioPreviewUrl);
+      setAudioPreviewUrl(null);
+    }
   };
 
-  const handleUseRecording = () => {
+  const handleStartRecording = async () => {
+    setVoiceError('');
+    setTranscript('');
+    cleanupAudioPreview();
+    setAudioBlob(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      chunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (ev: BlobEvent) => {
+        if (ev.data.size > 0) {
+          chunksRef.current.push(ev.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        setAudioBlob(blob);
+        const previewUrl = URL.createObjectURL(blob);
+        setAudioPreviewUrl(previewUrl);
+        setRecordingComplete(true);
+        setIsRecording(false);
+        mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingComplete(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to access microphone.';
+      setVoiceError(message);
+      setIsRecording(false);
+      setRecordingComplete(false);
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const handleUseRecording = async () => {
+    if (!audioBlob) {
+      setVoiceError('Please record audio before transcription.');
+      return;
+    }
+
+    setVoiceError('');
     setIsTranscribing(true);
-    // Simulate transcription
-    setTimeout(() => {
+    try {
+      const transcription = await planTodayApi.uploadVoiceNote(event.id, audioBlob);
+      setTranscript(transcription);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Transcription failed.';
+      setVoiceError(message);
+    } finally {
       setIsTranscribing(false);
-      setTranscript("Hon'ble MP inspected the pillar construction. Pillar 4 is nearing completion. Contractor requested additional labor for the next phase.");
-    }, 2000);
+    }
+  };
+
+  const handleSaveNotes = async (text: string) => {
+    setIsSaving(true);
+    try {
+      await onSave(text);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -432,7 +550,7 @@ const UpdateDetailsModal: React.FC<{
                 placeholder="Enter real-time updates or notes here..."
                 className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
               />
-              <Button fullWidth onClick={() => onSave(notes)}>
+              <Button fullWidth onClick={() => handleSaveNotes(notes)} disabled={isSaving}>
                 Save & Notify Staff
               </Button>
             </div>
@@ -443,8 +561,7 @@ const UpdateDetailsModal: React.FC<{
                   <motion.button
                     animate={isRecording ? { scale: [1, 1.1, 1] } : {}}
                     transition={isRecording ? { repeat: Infinity, duration: 1.5 } : {}}
-                    onClick={handleStartRecording}
-                    disabled={isRecording}
+                    onClick={isRecording ? handleStopRecording : () => { void handleStartRecording(); }}
                     className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
                       isRecording ? 'bg-red-500 shadow-lg shadow-red-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200'
                     }`}
@@ -465,24 +582,35 @@ const UpdateDetailsModal: React.FC<{
                     )}
                   </motion.button>
                   <p className="mt-6 font-bold text-slate-900">
-                    {isRecording ? 'Recording...' : 'Start Recording'}
+                    {isRecording ? 'Recording... Tap to Stop' : 'Start Recording'}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">Tap to capture a voice briefing</p>
+                  <p className="text-xs text-slate-700 mt-1">Tap to capture a voice briefing</p>
                 </>
               ) : (
                 <div className="w-full space-y-6">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
-                    <button className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-                      <Play className="w-5 h-5 fill-current" />
-                    </button>
-                    <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-600 w-1/3" />
-                    </div>
-                    <span className="text-xs font-mono text-slate-500">0:12 / 0:45</span>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    {audioPreviewUrl ? (
+                      <audio controls src={audioPreviewUrl} className="w-full" />
+                    ) : (
+                      <div className="flex items-center gap-2 text-slate-500 text-sm">
+                        <Play className="w-4 h-4" />
+                        No recording available
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setRecordingComplete(false)}>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setRecordingComplete(false);
+                        setTranscript('');
+                        setVoiceError('');
+                        cleanupAudioPreview();
+                        setAudioBlob(null);
+                      }}
+                    >
                       <RotateCcw className="w-4 h-4 mr-2" /> Re-record
                     </Button>
                     <Button className="flex-1" onClick={handleUseRecording} disabled={isTranscribing}>
@@ -498,6 +626,12 @@ const UpdateDetailsModal: React.FC<{
                     </div>
                   )}
 
+                  {voiceError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                      {voiceError}
+                    </div>
+                  )}
+
                   {transcript && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -510,7 +644,7 @@ const UpdateDetailsModal: React.FC<{
                   )}
 
                   {transcript && (
-                    <Button fullWidth onClick={() => onSave(transcript)}>
+                    <Button fullWidth onClick={() => handleSaveNotes(transcript)} disabled={isSaving}>
                       Save & Notify Staff
                     </Button>
                   )}

@@ -52,6 +52,7 @@ import { ContactBookPage } from './pages/staff/ContactBookPage';
 import { BulkUploadPage } from './pages/staff/BulkUploadPage';
 import { AuditLogsPage } from './pages/staff/AuditLogsPage';
 import { SpeechUploadPage } from './pages/staff/SpeechUploadPage';
+import { SpeechBulkUploadPage } from './pages/staff/SpeechBulkUploadPage';
 import { StaffParliamentEntryPage } from './pages/staff/StaffParliamentEntryPage';
 import { StaffEqRequestPage } from './pages/staff/StaffEqRequestPage';
 
@@ -97,14 +98,20 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isPublicPage = location.pathname === '/' || location.pathname.includes('/login') || location.pathname.includes('/official/secure-access');
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-transparent">
       {isAuthenticated && !isPublicPage && <Sidebar />}
       <main
-        className={`flex-1 transition-all duration-300 ${isAuthenticated && !isPublicPage ? 'pl-64' : ''
+        className={`relative flex-1 transition-all duration-300 ${isAuthenticated && !isPublicPage ? 'pl-64' : ''
           }`}
       >
+        {isAuthenticated && !isPublicPage && (
+          <>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,153,51,0.08),_transparent_26%),radial-gradient(circle_at_top_right,_rgba(11,61,145,0.08),_transparent_28%)]" />
+            <div className="pointer-events-none absolute inset-x-10 top-24 h-56 rounded-[3rem] bg-white/22 blur-3xl" />
+          </>
+        )}
         {isAuthenticated && !isPublicPage && <TopNav />}
-        <div className={!isPublicPage ? 'p-8 pt-10' : ''}>
+        <div className={!isPublicPage ? 'relative p-5 md:p-8 pt-6 md:pt-8' : ''}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -124,12 +131,13 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <MockDataProvider>
-          <HashRouter>
-            <AppLayout>
-              <Routes>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <MockDataProvider>
+            <HashRouter>
+              <AppLayout>
+                <Routes>
                 <Route path="/" element={<LandingPage />} />
 
                 {/* Isolated Login Portals */}
@@ -165,6 +173,7 @@ const App: React.FC = () => {
                 <Route path="/pa/parliament/letters" element={<ProtectedRoute officialOnly roles={[UserRole.PA, UserRole.ADMIN]}><ParliamentLettersPage /></ProtectedRoute>} />
                 <Route path="/pa/parliament/questions" element={<ProtectedRoute officialOnly roles={[UserRole.PA, UserRole.ADMIN]}><ParliamentQuestionsPage /></ProtectedRoute>} />
                 <Route path="/pa/railway-eq" element={<ProtectedRoute officialOnly roles={[UserRole.PA, UserRole.ADMIN]}><PaEqDashboardPage /></ProtectedRoute>} />
+                <Route path="/pa/railway-eq/new" element={<ProtectedRoute officialOnly roles={[UserRole.PA, UserRole.ADMIN]}><StaffEqRequestPage /></ProtectedRoute>} />
 
                 {/* Staff Routes (Protected Official) */}
                 <Route path="/staff" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><StaffDashboard /></ProtectedRoute>} />
@@ -183,6 +192,7 @@ const App: React.FC = () => {
                 <Route path="/staff/contacts/:id" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><ContactDetailPage /></ProtectedRoute>} />
                 <Route path="/staff/audit" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><AuditLogsPage /></ProtectedRoute>} />
                 <Route path="/staff/speech/upload" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><SpeechUploadPage /></ProtectedRoute>} />
+                <Route path="/staff/speech/bulk" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><SpeechBulkUploadPage /></ProtectedRoute>} />
                 <Route path="/staff/parliament/entry" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><StaffParliamentEntryPage /></ProtectedRoute>} />
                 <Route path="/staff/railway-eq" element={<ProtectedRoute officialOnly roles={[UserRole.STAFF, UserRole.ADMIN]}><StaffEqRequestPage /></ProtectedRoute>} />
 
@@ -198,12 +208,13 @@ const App: React.FC = () => {
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </AppLayout>
-          </HashRouter>
-        </MockDataProvider>
-      </NotificationProvider>
-    </AuthProvider>
+                </Routes>
+              </AppLayout>
+            </HashRouter>
+          </MockDataProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </AppErrorBoundary>
   );
 };
 
@@ -218,5 +229,51 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
     <Button variant="outline" onClick={() => window.history.back()}>Go Back</Button>
   </div>
 );
+
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; message: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, message: error?.message || 'Unknown runtime error' };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[AppErrorBoundary] Caught runtime error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+          <div className="max-w-xl w-full bg-white border border-rose-100 rounded-3xl shadow-xl p-8 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Something went wrong</h2>
+            <p className="text-sm text-slate-600 font-medium">A runtime error occurred in the app layout.</p>
+            <p className="text-xs text-slate-500 break-words">{this.state.message}</p>
+            <Button
+              className="rounded-xl"
+              onClick={() => {
+                this.setState({ hasError: false, message: '' });
+                window.location.reload();
+              }}
+            >
+              Reload App
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default App;

@@ -23,7 +23,8 @@ import {
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { contactsApi } from '../../hooks/useContacts';
-import { Contact, TourPackage, Destination } from '../../types';
+import { useMockData } from '../../context/MockDataContext';
+import { Contact, TourPackage, Destination, TourProgram } from '../../types';
 
 const STEPS = [
   { id: 1, label: 'Basic Info' },
@@ -46,14 +47,15 @@ const MOCK_DESTINATIONS: Destination[] = [
 
 export const ScheduleTourWizard: React.FC = () => {
   const navigate = useNavigate();
+  const { addTour } = useMockData();
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   useEffect(() => {
     contactsApi.list().then(({ data }: any) => {
       if (data) setAllContacts(data.map((r: any) => ({
         id: r.contact_id, name: r.full_name, designation: r.designation ?? '',
         organization: r.organization ?? '', category: r.category ?? 'Other',
-        state: r.state ?? '', zilla: r.zilla ?? '', taluk: r.location_taluk ?? '',
-        gp: r.gram_panchayat ?? '', village: r.location_village ?? '',
+        state: r.state ?? '', zilla: r.zilla ?? '', taluk: r.taluk ?? r.location_taluk ?? '',
+        gp: r.gram_panchayat ?? '', village: r.village ?? r.location_village ?? '',
         mobile: r.mobile ?? '', email: r.email ?? undefined, isVip: r.is_vip ?? false,
         createdAt: r.created_at?.split('T')[0] ?? '',
       })));
@@ -85,12 +87,65 @@ export const ScheduleTourWizard: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [tourId] = useState(() => `TR-${Math.floor(Math.random() * 9000) + 1000}`);
 
+  const buildScheduledTour = (): TourProgram => {
+    const selectedPackage = MOCK_PACKAGES.find(pkg => pkg.id === formData.packageId);
+    const selectedDestinations = MOCK_DESTINATIONS.filter(dest => formData.selectedDestinations.includes(dest.id));
+    const primaryDestination = selectedDestinations[0];
+    const destinationNames = selectedDestinations.map(dest => dest.name).join(', ');
+    const destinationAddress = primaryDestination
+      ? [primaryDestination.village, primaryDestination.block, primaryDestination.district].filter(Boolean).join(', ')
+      : '';
+    const notificationChannels = Object.entries(formData.notifications)
+      .filter(([, enabled]) => enabled)
+      .map(([channel]) => channel === 'whatsapp' ? 'WhatsApp' : channel.toUpperCase());
+
+    return {
+      id: tourId,
+      title: formData.tourName.trim(),
+      type: 'Official Visit',
+      startDate: formData.date,
+      startTime: formData.startTime,
+      duration: selectedPackage?.standardDuration ?? '2 hours',
+      location: {
+        name: destinationNames || 'Location TBD',
+        address: destinationAddress,
+      },
+      status: 'Scheduled',
+      participants: formData.participants.map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+        role: participant.designation || 'Participant',
+        contact: participant.mobile || participant.email || '',
+        notified: notificationChannels.length > 0,
+      })),
+      instructions: selectedInviter
+        ? `Invited by ${selectedInviter.name}${selectedInviter.designation ? `, ${selectedInviter.designation}` : ''}`
+        : 'No additional instructions',
+      notificationLog: formData.participants.flatMap((participant) =>
+        notificationChannels.map((channel) => ({
+          recipientName: participant.name,
+          channel: channel === 'SMS' ? 'SMS' : 'WhatsApp' as const,
+          status: 'Sent' as const,
+          timestamp: new Date().toLocaleString(),
+        }))
+      ),
+      createdAt: new Date().toISOString(),
+      createdBy: selectedInviter?.id ?? 'PA-001',
+    };
+  };
+
+  const handleScheduleTour = async () => {
+    const scheduledTour = buildScheduledTour();
+    await addTour(scheduledTour);
+    setIsSuccess(true);
+  };
+
   const handleNext = () => {
     if (currentStep < 6) {
       setCompletedSteps([...new Set([...completedSteps, currentStep])]);
       setCurrentStep(currentStep + 1);
     } else {
-      setIsSuccess(true);
+      void handleScheduleTour();
     }
   };
 
@@ -109,11 +164,15 @@ export const ScheduleTourWizard: React.FC = () => {
   // Step 3 Search
   const inviterResults = useMemo(() => {
     if (!inviterSearch || inviterSearch.length < 2) return [];
+    const term = inviterSearch.toLowerCase();
     return allContacts.filter(c => 
-      c.name.toLowerCase().includes(inviterSearch.toLowerCase()) ||
-      c.mobile.includes(inviterSearch)
+      c.name.toLowerCase().includes(term) ||
+      c.mobile.includes(inviterSearch) ||
+      c.designation.toLowerCase().includes(term) ||
+      c.category.toLowerCase().includes(term) ||
+      c.organization.toLowerCase().includes(term)
     );
-  }, [inviterSearch]);
+  }, [allContacts, inviterSearch]);
 
   const selectedInviter = allContacts.find(c => c.id === formData.inviterId);
 

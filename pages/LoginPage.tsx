@@ -155,29 +155,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ portalType }) => {
         <div className={`md:w-5/12 p-12 text-white flex flex-col justify-between relative overflow-hidden transition-colors duration-500 ${portalType === 'official' ? 'bg-indigo-950' : 'bg-slate-900'}`}>
           <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none" 
                style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #4f46e5 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-          
-          <div className="relative z-10">
+
+          <div className="relative z-10 text-slate-100">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl mb-8 shadow-xl ${portalType === 'official' ? 'bg-slate-900 shadow-indigo-500/20' : 'bg-indigo-600 shadow-indigo-900/50'}`}>MC</div>
             <h1 className="text-4xl font-black tracking-tighter mb-4">
               {portalType === 'citizen' ? 'Citizen Connect' : 'Official Portal'}
             </h1>
-            <p className="text-slate-400 font-medium leading-relaxed">
+            <p className="text-slate-200 font-medium leading-relaxed">
               {portalType === 'citizen' 
                 ? 'Your direct line to transparent governance. Submit grievances and track local development projects.'
                 : 'Secure administrative access for the Hon. Member of Parliament and authorized office executives.'}
             </p>
           </div>
 
-          <div className="relative z-10">
+          <div className="relative z-10 text-slate-100">
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm font-bold">
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-indigo-400">
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-indigo-200">
                   <Fingerprint className="w-4 h-4" />
                 </div>
                 {portalType === 'citizen' ? 'Secure Citizen ID Verification' : 'Biometric & Encrypted Access'}
               </div>
               <div className="flex items-center gap-3 text-sm font-bold">
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-green-400">
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-green-200">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 Authorized GovTech Network

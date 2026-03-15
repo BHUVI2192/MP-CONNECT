@@ -71,19 +71,19 @@ export const ProjectDetailPage: React.FC = () => {
     devWorksApi.getById(id).then(({ data }: any) => {
       if (data) {
         const statusMap: Record<string, Project['status']> = {
-          PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
+          PLANNED: 'Planned', PROPOSED: 'Planned', SANCTIONED: 'Planned', ONGOING: 'Ongoing',
           COMPLETED: 'Completed', ON_HOLD: 'On Hold',
         };
         setProject({
           id: data.work_id, name: data.work_title, category: data.sector ?? 'Other',
           status: statusMap[data.status] ?? 'Planned', progress: data.progress_pct ?? 0,
-          budget: data.sanctioned_amount ?? data.estimated_cost ?? 0,
+          budget: data.budget ?? data.sanctioned_amount ?? data.estimated_cost ?? 0,
           zilla: data.zilla ?? '', taluk: data.taluk ?? '', gp: data.gram_panchayat ?? '',
-          village: data.village ?? '', sanctionOrderNo: data.scheme_name ?? '',
-          startDate: data.start_date ?? '', completionDate: data.target_date ?? undefined,
-          description: '', beneficiaries: 0, fundingSource: 'MPLADS',
+          village: data.village ?? '', sanctionOrderNo: data.funding_source ?? data.scheme_name ?? '',
+          startDate: data.start_date ?? '', completionDate: data.completion_date ?? data.target_date ?? undefined,
+          description: data.description ?? '', beneficiaries: data.beneficiaries ?? 0, fundingSource: data.funding_source ?? data.scheme_name ?? 'MPLADS',
           photos: (data.development_work_media ?? []).filter((m: any) => m.media_type === 'PHOTO').map((m: any) => ({
-            url: m.storage_path, caption: m.file_name ?? '',
+            url: m.resolved_url ?? devWorksApi.resolveMediaUrl(m.storage_path), caption: m.file_name ?? '',
           })),
         });
       }
@@ -120,6 +120,14 @@ export const ProjectDetailPage: React.FC = () => {
     Planned: 'bg-blue-100 text-blue-700',
     'On Hold': 'bg-slate-100 text-slate-500',
   };
+
+  const progressValue = Math.max(0, Math.min(project.progress ?? 0, 100));
+  const beneficiaryLabel = project.beneficiaries && project.beneficiaries > 0
+    ? project.beneficiaries.toLocaleString()
+    : 'Not set';
+  const budgetLabel = project.budget > 0
+    ? `₹${(project.budget / 10000000).toFixed(1)} Cr`
+    : 'Not set';
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-8">
@@ -285,50 +293,96 @@ export const ProjectDetailPage: React.FC = () => {
               </div>
             </div>
             <div className="aspect-square bg-slate-100 rounded-[2.5rem] border-4 border-white shadow-xl overflow-hidden relative">
-              <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/pin-s+6366f1(76.6447,12.3085)/76.6447,12.3085,12/600x600?access_token=pk.eyJ1IjoibW9ja3VzZXIiLCJhIjoiY2t4eHh4eHh4eHh4eHh4eHh4eHh4eHh4In0=')] bg-cover bg-center" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-2xl animate-bounce">
-                  <MapPin className="w-6 h-6" />
-                </div>
-              </div>
+              <iframe
+                title="Project location"
+                className="absolute inset-0 w-full h-full"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(
+                  [project.village, project.gp, project.taluk, project.zilla, 'India']
+                    .filter(Boolean)
+                    .join(', ')
+                )}&t=${mapMode === 'satellite' ? 'k' : 'm'}&output=embed`}
+              />
               <div className="absolute bottom-6 left-6 right-6 p-4 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Coordinates</p>
-                <p className="text-xs font-bold text-slate-900">{project.coordinates?.lat.toFixed(4)}° N, {project.coordinates?.lng.toFixed(4)}° E</p>
+                <p className="text-xs font-bold text-slate-900">
+                  {project.coordinates
+                    ? `${project.coordinates.lat.toFixed(4)}° N, ${project.coordinates.lng.toFixed(4)}° E`
+                    : 'Coordinates not captured'}
+                </p>
               </div>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  [project.village, project.gp, project.taluk, project.zilla, 'India']
+                    .filter(Boolean)
+                    .join(', ')
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-700 shadow-sm border border-white"
+              >
+                Open in Google Maps
+              </a>
             </div>
           </section>
 
           {/* Quick Stats */}
-          <Card className="bg-slate-900 text-white border-none rounded-[2.5rem] p-8 space-y-8">
-            <div className="space-y-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Project Progress</p>
-              <div className="flex items-end gap-2">
-                <span className="text-4xl font-black">{project.progress}%</span>
-                <span className="text-xs font-bold text-indigo-400 mb-1.5 uppercase tracking-widest">Complete</span>
+          <Card className="border-slate-200 rounded-[2.5rem] bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white shadow-[0_24px_70px_-28px_rgba(15,23,42,0.8)]">
+            <div className="space-y-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.24em]">Project Progress</p>
+                  <div className="mt-3 flex items-end gap-3">
+                    <span className="text-5xl font-black leading-none">{progressValue}%</span>
+                    <span className="mb-1 rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200">
+                      {project.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">Funding</p>
+                  <p className="mt-1 text-sm font-black text-white">{project.fundingSource || 'Not set'}</p>
+                </div>
               </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${project.progress}%` }}
-                  className="h-full bg-indigo-500 rounded-full"
-                />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">
+                  <span>Execution</span>
+                  <span>{progressValue === 100 ? 'Completed' : `${100 - progressValue}% remaining`}</span>
+                </div>
+                <div className="h-3 rounded-full bg-white/10 p-0.5 shadow-inner">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressValue}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-indigo-400 to-violet-300"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Beneficiaries</p>
+                  <p className="mt-2 text-xl font-black text-white">{beneficiaryLabel}</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Budget</p>
+                  <p className="mt-2 text-xl font-black text-white">{budgetLabel}</p>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Project Brief</p>
+                    <p className="mt-1 text-sm font-bold text-white/75">Download a snapshot with location, budget, and execution details.</p>
+                  </div>
+                  <Button variant="outline" className="shrink-0 rounded-2xl border-white/25 text-white hover:bg-white/10 hover:text-white">
+                    <Download className="w-4 h-4 mr-2" /> Download Brief
+                  </Button>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Beneficiaries</p>
-                <p className="text-lg font-black">{project.beneficiaries?.toLocaleString() || '0'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Budget</p>
-                <p className="text-lg font-black">₹{(project.budget / 10000000).toFixed(1)} Cr</p>
-              </div>
-            </div>
-
-            <Button fullWidth className="bg-white text-slate-900 hover:bg-slate-100 rounded-2xl font-black uppercase tracking-widest text-xs py-4">
-              <Download className="w-4 h-4 mr-2" /> Download Project Brief
-            </Button>
           </Card>
         </div>
       </div>

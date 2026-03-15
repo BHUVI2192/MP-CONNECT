@@ -33,9 +33,11 @@ import {
   Star,
   Play,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '../../components/UI/Button';
+import { supabase } from '../../lib/supabase';
 
 // --- Types ---
 
@@ -74,6 +76,18 @@ const STATUS_OPTIONS: { id: WorkStatus; label: string; color: string; bg: string
   { id: 'Ongoing', label: 'Ongoing', color: 'text-orange-600', bg: 'bg-orange-50' },
   { id: 'Completed', label: 'Completed', color: 'text-green-600', bg: 'bg-green-50' },
 ];
+
+const WORK_STATUS_MAP: Record<WorkStatus, 'PROPOSED' | 'ONGOING' | 'COMPLETED'> = {
+  Planned: 'PROPOSED',
+  Ongoing: 'ONGOING',
+  Completed: 'COMPLETED',
+};
+
+const WORK_PROGRESS_MAP: Record<WorkStatus, number> = {
+  Planned: 0,
+  Ongoing: 50,
+  Completed: 100,
+};
 
 // --- Components ---
 
@@ -157,6 +171,8 @@ export const DevelopmentWorkUploadPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   // --- Form State ---
   const [formData, setFormData] = useState({
@@ -227,6 +243,116 @@ export const DevelopmentWorkUploadPage: React.FC = () => {
     const num = val.replace(/\D/g, '');
     if (!num) return '';
     return new Intl.NumberFormat('en-IN').format(parseInt(num));
+  };
+
+  const uploadDevelopmentMedia = async (workId: string, items: MediaFile[]) => {
+    const results = await Promise.allSettled(
+      items.map(async (item, index) => {
+        const extension = item.file.name.split('.').pop() || 'bin';
+        const folder = item.type === 'photo' ? 'photos' : 'videos';
+        const path = `development-works/${workId}/${folder}/${Date.now()}-${index}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('dev-works-media')
+          .upload(path, item.file, { upsert: false });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { error: mediaError } = await supabase.from('development_work_media').insert({
+          work_id: workId,
+          media_type: item.type === 'photo' ? 'PHOTO' : 'VIDEO',
+          storage_path: path,
+          file_name: item.file.name,
+          file_size: item.file.size,
+          display_order: index,
+        });
+
+        if (mediaError) {
+          throw mediaError;
+        }
+      })
+    );
+
+    const failed = results.filter((result) => result.status === 'rejected');
+    return {
+      uploadedCount: results.length - failed.length,
+      failedCount: failed.length,
+    };
+  };
+
+  const handleSubmit = async () => {
+    if (Object.values(tabErrors).some(v => v)) {
+      alert('Please complete all required fields before uploading.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitMessage(null);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        throw authError;
+      }
+
+      const budgetValue = Number(formData.metrics.budget.replace(/,/g, ''));
+      const safeBudget = Number.isFinite(budgetValue) ? budgetValue : null;
+      const schemeName = formData.metrics.fundingSource === 'Other'
+        ? (formData.metrics.otherFunding.trim() || 'Other')
+        : formData.metrics.fundingSource || null;
+
+      const payload = {
+        work_title: formData.title.trim(),
+        sector: formData.sector || null,
+        scheme_name: schemeName,
+        estimated_cost: safeBudget,
+        sanctioned_amount: safeBudget,
+        village: formData.location.village.trim() || null,
+        taluk: formData.location.taluk.trim() || null,
+        zilla: formData.location.zilla.trim() || null,
+        gram_panchayat: formData.location.gp.trim() || null,
+        work_type: formData.workType || null,
+        is_public: formData.visibility.public,
+        created_by: authData.user?.id ?? null,
+        status: WORK_STATUS_MAP[formData.status],
+        progress_pct: WORK_PROGRESS_MAP[formData.status],
+        start_date: formData.metrics.startDate || null,
+        target_date: formData.metrics.completionDate || null,
+      };
+
+      const { data: workRecord, error: insertError } = await supabase
+        .from('development_works')
+        .insert(payload)
+        .select('work_id')
+        .single();
+
+      if (insertError || !workRecord) {
+        throw insertError ?? new Error('Failed to create development work record.');
+      }
+
+      let mediaSummary = { uploadedCount: 0, failedCount: 0 };
+      if (media.length > 0) {
+        mediaSummary = await uploadDevelopmentMedia(workRecord.work_id, media);
+      }
+
+      const partialFailureMessage = mediaSummary.failedCount > 0
+        ? ` Project saved, but ${mediaSummary.failedCount} media file(s) could not be uploaded.`
+        : '';
+
+      const successMessage = `Project uploaded successfully.${partialFailureMessage}`;
+      setSubmitMessage(successMessage);
+      alert(successMessage);
+      navigate('/staff/entry');
+    } catch (error) {
+      console.error('Error uploading project:', error);
+      const message = error instanceof Error ? error.message : 'Upload failed. Please try again.';
+      setSubmitMessage(message);
+      alert(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // --- Render Tabs ---
@@ -743,6 +869,15 @@ export const DevelopmentWorkUploadPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-32">
+      {submitMessage && (
+        <div className={`mb-6 rounded-2xl border px-5 py-4 text-sm font-semibold ${submitMessage.includes('successfully')
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+          {submitMessage}
+        </div>
+      )}
+
       <header className="mb-8 p-6 bg-[#0B3D91] rounded-[2.5rem] text-white shadow-xl flex items-center gap-6">
         <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center p-2 shadow-inner shrink-0 leading-none">
           <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Emblem" className="h-14 opacity-80 mix-blend-multiply" />
@@ -848,49 +983,11 @@ export const DevelopmentWorkUploadPage: React.FC = () => {
             </Button>
             <Button
               className="flex-1 sm:flex-none rounded-2xl px-12 py-4 shadow-xl shadow-indigo-100"
-              onClick={async () => {
-                if (Object.values(tabErrors).some(v => v)) {
-                  alert('Please complete all required fields before uploading.');
-                  return;
-                }
-                try {
-                  const data = new FormData();
-                  data.append('projectData', JSON.stringify(formData));
-
-                  // Append photos
-                  const photos = media.filter(m => m.type === 'photo');
-                  photos.forEach((m, i) => {
-                    data.append('photos', m.file);
-                    data.append(`photo_captions[${i}]`, m.caption);
-                  });
-
-                  // Append videos
-                  const videos = media.filter(m => m.type === 'video');
-                  videos.forEach((m, i) => {
-                    data.append('videos', m.file);
-                    data.append(`video_captions[${i}]`, m.caption);
-                  });
-
-                  // Simulated Backend API Call
-                  const response = await fetch('/api/projects/upload', {
-                    method: 'POST',
-                    body: data
-                  });
-
-                  if (!response.ok) {
-                    // Ignore fail in dev environment without backend
-                    console.warn('Backend API not found, simulating success');
-                  }
-
-                  alert('Project uploaded successfully!');
-                  navigate('/staff/entry');
-                } catch (error) {
-                  console.error('Error uploading project:', error);
-                  alert('Upload failed. Please try again.');
-                }
-              }}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              <Upload className="w-4 h-4 mr-2" /> Upload Project
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+              {isSubmitting ? 'Uploading Project...' : 'Upload Project'}
             </Button>
           </div>
         </div>

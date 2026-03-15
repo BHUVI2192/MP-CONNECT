@@ -30,12 +30,17 @@ export const ContactBookPage: React.FC = () => {
                 name: r.full_name,
                 designation: r.designation ?? '',
                 organization: r.organization ?? '',
-                location: { state: r.state ?? '', zilla: r.zilla ?? '', taluk: r.taluk ?? '', gp: r.gram_panchayat ?? '', village: r.village ?? '' },
+                state: r.state ?? '',
+                zilla: r.zilla ?? '',
+                taluk: r.taluk ?? '',
+                gp: r.gram_panchayat ?? '',
+                village: r.village ?? '',
                 mobile: r.mobile ?? '',
-                email: r.email ?? undefined,
+                email: r.email ?? '',
                 category: r.category ?? 'OTHER',
                 isVip: r.is_vip ?? false,
                 addedAt: r.created_at ?? '',
+                createdAt: r.created_at ?? '',
                 birthday: r.birthday ?? undefined,
                 anniversary: r.anniversary ?? undefined,
             })));
@@ -341,7 +346,7 @@ export const ContactBookPage: React.FC = () => {
                                 <span className="whitespace-nowrap">Add New Contact</span>
                             </button>
                             <button
-                                onClick={() => navigate('/staff/contacts/bulk-upload')}
+                                onClick={() => navigate('/staff/contacts/bulk')}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
                             >
                                 <Upload size={18} />

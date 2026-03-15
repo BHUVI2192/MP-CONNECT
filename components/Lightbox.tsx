@@ -17,11 +17,12 @@ import { Photo } from '../types';
 interface LightboxProps {
   photos: Photo[];
   initialIndex: number;
+  autoPlay?: boolean;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const Lightbox: React.FC<LightboxProps> = ({ photos, initialIndex, isOpen, onClose }) => {
+export const Lightbox: React.FC<LightboxProps> = ({ photos, initialIndex, autoPlay = false, isOpen, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -29,6 +30,14 @@ export const Lightbox: React.FC<LightboxProps> = ({ photos, initialIndex, isOpen
   useEffect(() => {
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsPlaying(false);
+      return;
+    }
+    setIsPlaying(autoPlay);
+  }, [autoPlay, isOpen]);
 
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % photos.length);
@@ -63,6 +72,34 @@ export const Lightbox: React.FC<LightboxProps> = ({ photos, initialIndex, isOpen
 
   const currentPhoto = photos[currentIndex];
 
+  const handleDownloadCurrent = async () => {
+    try {
+      const response = await fetch(currentPhoto.url, { mode: 'cors' });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+      const blob = await response.blob();
+      const extension = (() => {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('jpeg')) return 'jpg';
+        if (contentType.includes('png')) return 'png';
+        if (contentType.includes('webp')) return 'webp';
+        if (contentType.includes('gif')) return 'gif';
+        return 'jpg';
+      })();
+      const fileName = `gallery_photo_${currentIndex + 1}.${extension}`;
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Failed to download photo:', error);
+      alert('Unable to download this photo right now.');
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div 
@@ -95,7 +132,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ photos, initialIndex, isOpen
             >
               <ZoomOut className="w-6 h-6" />
             </button>
-            <button className="p-2 text-white/70 hover:text-white transition-colors">
+            <button onClick={handleDownloadCurrent} className="p-2 text-white/70 hover:text-white transition-colors">
               <Download className="w-6 h-6" />
             </button>
             <button className="p-2 text-white/70 hover:text-white transition-colors">
